@@ -21,11 +21,11 @@ import assert from 'node:assert/strict';
 import { paper, distinct, hits } from './paper.js';
 import { GEO, slotX } from '../src/art/geo.js';
 import { P } from '../src/art/pix.js';
-import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText } from '../src/art/hud.js';
+import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText, chipText } from '../src/art/hud.js';
 import { inventMenu } from '../src/invent.js';
-import { wrap } from '../src/art/font.js';
+import { wrap, measure } from '../src/art/font.js';
 import { chordSvg, barres, window_ } from '../src/art/chordsvg.js';
-import { diagram, CHORDS } from '../src/menu.js';
+import { diagram, CHORDS, label } from '../src/menu.js';
 import { keyFor } from '../src/input/keys.js';
 import { MENU, NAMES, COOKWARE } from '../src/menu.js';
 import { FONTS } from '../src/art/font.js';
@@ -691,4 +691,33 @@ test('a long chord name stays in its column, big or small', async () => {
   inScreen(runs);
   inCards(onPlate(runs));
   noPileUp(onPlate(runs));
+});
+
+test('a chip never prints one chord where another was ordered', () => {
+  /* The recipe chips are eight pixels wide on a long dish and a chord name
+   * can be five glyphs, so some names cannot be printed whole. What a chip
+   * must never do is print `C` for a Cadd9: a session with a guitar said the
+   * preview showed the same letter for two different chords and the hand
+   * went to the wrong shape. A name that does not fit is cut to its root AND
+   * marked, and the scene paints a cyan rule under a marked chip. */
+  for (const chord of CHORDS) {
+    const name = label(chord);
+    for (const w of [8, 11, 14, 17, 18]) {
+      const chip = chipText(name, w);
+      assert.ok(chip.s, chord + ' printed nothing at ' + w + 'px');
+      assert.ok(measure(chip.s, 'S') <= w, chord + ' overflows a ' + w + 'px chip: ' + chip.s);
+      if (chip.cut) {
+        assert.ok(name.startsWith(chip.s), chord + ' was cut to something that is not its root: ' + chip.s);
+        assert.notEqual(chip.s, name);
+      } else {
+        assert.equal(chip.s, name, chord + ' says it fits and printed something else');
+      }
+    }
+  }
+  // The whole point, stated as one case: at every width, either the chip says
+  // Cadd9 or it is marked. It is never an unmarked C.
+  for (let w = 4; w <= 40; w++) {
+    const chip = chipText('Cadd9', w);
+    assert.ok(chip.s === 'Cadd9' || chip.cut, 'a Cadd9 read as a plain ' + chip.s + ' at ' + w + 'px');
+  }
 });

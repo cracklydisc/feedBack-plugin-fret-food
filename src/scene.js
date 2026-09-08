@@ -63,7 +63,7 @@ import {
 import { buildBackdrop } from './art/backdrop.js';
 import { GEO, slotX, slotCX } from './art/geo.js';
 import { loadAtlas } from './art/atlas.js';
-import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText } from './art/hud.js';
+import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText, chipText } from './art/hud.js';
 import { chordSvg } from './art/chordsvg.js';
 import { diagram, LEVELS, label } from './menu.js';
 import { keyFor } from './input/keys.js';
@@ -1179,16 +1179,24 @@ export function createScene(container) {
       rect(g, cxp, cy, chipW, 8, cur ? P.gold : k === fresh ? P.greenHi : P.ink);
       rect(g, cxp + (cur ? 1 : 0), cy + (cur ? 1 : 0), chipW - (cur ? 2 : 0), 8 - (cur ? 2 : 0),
         done ? P.greenLo : cur ? P.amber : P.plateHi);
-      // Not uppercased: `Am` is a chord and `AM` is a different one, and the
-      // small font grew a lowercase m so that this line could stop shouting.
-      // A name wider than its chip — `Cadd9` in a chip cut for `Am` — keeps
-      // its root and drops the rest: the chip is progress, the card below is
-      // the instruction, and a root in the right place beats a smear.
-      const step = label(st.steps[k]);
-      const shown = measure(step, 'S') <= chipW ? step : (/^[A-G][#b]?/.exec(step) || [step])[0];
-      text(g, shown, cxp + chipW / 2, cy + 2, {
+      /* Not uppercased: `Am` is a chord and `AM` is a different one, and the
+       * small font grew a lowercase m so that this line could stop shouting.
+       * A name too wide for its chip keeps its root and takes a mark: see
+       * `chipText`, and the cyan rule under it here. */
+      const chip = chipText(label(st.steps[k]), chipW);
+      text(g, chip.s, cxp + chipW / 2, cy + 2, {
         font: 'S', color: done ? P.greenHi : cur ? P.ink : P.grey, align: 'center',
       });
+      if (chip.cut) {
+        /* THE LETTER IS NOT THE WHOLE CHORD. One cyan rule under the chip,
+         * in the colour this game paints everything the hand is told to do
+         * with — the strings, the flying note, the key on the card. It costs
+         * a row nothing else uses and it is the difference between reading
+         * `C` and going to a C. */
+        rect(g, cxp, cy + 8, chipW, 1, P.cyanHi);
+        tip('altered', ['THAT CHIP IS CUT SHORT', 'A CYAN RULE UNDER A STEP MEANS THE LETTER IS NOT THE WHOLE CHORD',
+          'THE BIG NAME AND THE FINGERING ON THE CARD ARE THE WHOLE OF IT']);
+      }
       cxp += chipW + 1;
     }
 

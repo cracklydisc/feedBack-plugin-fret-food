@@ -343,6 +343,29 @@ const BUBBLE_AIR = 3;
  * the size the room is drawn at. A third line was the other way out and it is
  * the wrong one: the bubble would reach the customer's face.
  */
+/**
+ * What a chip can say about a chord, in the width it has.
+ *
+ * A chip is eight pixels wide on an eight-step recipe and the S font is four
+ * to a glyph, so `Cadd9` does not go in one and never will. What it must not
+ * do is print `C`: a session with a guitar said it in one line — the preview
+ * shows the same letter for two different chords, and the hand goes to the
+ * wrong shape before the card is even in front of you.
+ *
+ * So a name that does not fit is CUT TO ITS ROOT AND MARKED, and the mark is
+ * the point: it says "there is more to this one than the letter", and the
+ * card under it says exactly what. `cut` is what the scene paints the mark
+ * from; `full` is the name when the whole of it fits and there is nothing to
+ * warn about.
+ */
+export function chipText(name, width) {
+  const s = String(name === undefined || name === null ? '' : name);
+  if (!s) return { s: '', cut: false };
+  if (measure(s, 'S') <= width) return { s, cut: false };
+  const root = (/^[A-G][#b]?/.exec(s) || [s])[0];
+  return { s: root, cut: true };
+}
+
 export function bubbleLines(dish, geo) {
   const maxW = geo.SLOT_W - 4 - 2 * BUBBLE_AIR;
   const s = String(dish || '').toUpperCase();
