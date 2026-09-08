@@ -1,0 +1,118 @@
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * FRET FOOD: the stylesheet, and why it is nearly empty.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The scene is one canvas drawn pixel by pixel in `src/scene.js`, and every
+ * colour in it lives in the palette in `src/art/pix.js`: brick, wood, amber,
+ * cyan, all of it. Nothing in the picture is a DOM element, so nothing in the
+ * picture is styled here.
+ *
+ * What is left for CSS is the frame around the picture: the box that fills the
+ * container the hub gives us, the canvas centred in it, and the one rule that
+ * makes pixel art possible in a browser, `image-rendering: pixelated`. The
+ * scene sets the canvas's own size, at an integer multiple of 480x270 when the
+ * box allows it, so the browser never has to invent a pixel.
+ *
+ * The tokens below are the only colours in this file. They paint the letterbox
+ * around the picture when the box is not 16:9, and nothing else. The kit's
+ * first law (no literal colour outside the token block) still holds here, and
+ * `tests/style.test.js` still checks it.
+ */
+:root{--kc-void:10 8 9;--kc-frame:106 78 58;--kc-amber:244 178 58;--kc-ink:13 11 12;--kc-text:246 240 228}
+
+/* Fills the box the hub gives. The hub's root is `position: absolute; inset: 0`
+   with `overflow: hidden`, and this does the same inside it. In a box with no
+   height of its own it falls back to the picture's own ratio. */
+.kc-root {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: rgb(var(--kc-void));
+}
+
+/* The picture. Its width and height are set by the scene, in CSS pixels that
+   correspond to a whole number of device pixels per game pixel whenever the
+   box allows it; `pixelated` is what keeps them square when it does not. */
+/* The canvas and the vector layer share one box, and the box is sized by
+ * `layout()` in the scene: both of them fill it. The layer is the chord
+ * diagrams and nothing else — the one panel a player has to read, drawn at the
+ * real resolution of the screen instead of at 480 by 270. */
+.kc-stack {
+    position: relative;
+    line-height: 0;
+}
+
+.kc-over {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+}
+
+.kc-screen {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: rgb(var(--kc-ink));
+    outline: none;
+}
+
+/* The run summary the hub shows when the service closes. `game.js` hands the
+ * hub a definition list and this is the only place its shape is decided: two
+ * columns, quiet labels, bright values, the hub's own type. It is the one
+ * piece of this game that is HTML in front of a player, and it reads like a
+ * receipt on purpose. */
+.kc-summary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 5px 16px;
+    margin: 14px 0 0;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.kc-summary dt {
+    color: rgb(var(--kc-text) / 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+    align-self: center;
+}
+
+.kc-summary dd {
+    margin: 0;
+    color: rgb(var(--kc-text));
+    font-variant-numeric: tabular-nums;
+}
+
+.kc-summary dd b {
+    color: rgb(var(--kc-amber));
+    font-weight: 600;
+}
+
+.kc-summary dd small {
+    color: rgb(var(--kc-text) / 0.6);
+    font-size: 11px;
+}
+
+/* The settings page: the kit draws the controls, and this is only the room
+ * around them and the line of prose under each. */
+.kc-settings {
+    display: grid;
+    gap: 10px;
+    max-width: 560px;
+}
+
+.kc-settings .kc-settings-note {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgb(var(--kc-text) / 0.6);
+}
