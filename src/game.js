@@ -107,23 +107,24 @@ kit.install({ id: ID, version: VERSION });
 
 /* ── where the chords come from ─────────────────────────────────────────
  *
- * The order is deliberate: what the address asks for always wins, because that
- * is what testing needs; then whatever was chosen last time; and last the
- * guitar, which is how the game is meant to be played.
+ * The guitar, and nothing else a player can choose. `?fretfood_input=keys`
+ * and `=scripted` exist for the preview and the bench, and a run from either
+ * reports no score (`SCORE_MULT.input`). The keyboard used to be a setting as
+ * well, and a setting is a thing a player finds: a service played on the C
+ * key is not one the hub's dB should count, so the address is the only way
+ * in, and it is a developer's way.
  */
 function readWanted() {
   let q = null;
   try { q = new URLSearchParams(location.search); } catch (_) { /* not in a real browser */ }
   const url = q && q.get('fretfood_input');
-  let saved = null;
-  try { saved = localStorage.getItem('fretfood.input'); } catch (_) { /* private mode */ }
   /* How hard the ear is, for a real guitar: `?fretfood_ear=easy|medium|hard`,
    * or the settings page's choice, or AUTO — which is the default and means
    * the first chord of the service decides (`earFor`). */
   let ear = null;
   try { ear = localStorage.getItem('fretfood.ear'); } catch (_) { /* private mode */ }
   return {
-    source: url || saved || 'detector',
+    source: url || 'detector',
     ear: (q && q.get('fretfood_ear')) || ear || 'auto',
     /* The mode, the pace and the pans, from the address, for the bench and
      * the preview: they preselect the options plate, which still shows. */
@@ -314,7 +315,7 @@ async function start({ container, modifiers, sdk }) {
 
   let label = built.label;
   let ended = false;
-  let fellBack = false;
+  let refused = false;                      // no guitar can be heard here: said once
   let toldKeys = false;
   let paused = false;
   let quitArmed = false;
@@ -402,25 +403,29 @@ async function start({ container, modifiers, sdk }) {
   });
 
   port.on('status', (ev) => {
-    /* The detector is missing or cannot hold. We carry on with the keyboard
-     * rather than leaving the player in front of a counter that ignores them,
-     * and the badge stops claiming a guitar is connected.
+    /* The detector is missing or cannot hold: no guitar can be heard here.
+     *
+     * This used to fall back to the keyboard, so the player was not left in
+     * front of a counter that ignored them. It is not a fallback any more,
+     * and the reason is the hub: it counts dB across its games, and a service
+     * played on the C key in a browser is not a service. So the kitchen stays
+     * closed, the scene says why in one line, and the badge says NO GUITAR
+     * instead of claiming one. Whoever is developing has `?fretfood_input=keys`
+     * and knows it. (Detection is a given on this app: nobody plays without an
+     * instrument plugged in, or they are not the player this is for.)
      *
      * ONCE. Stopping the detector used to answer with another `ready: false`,
      * which landed back here, which stopped it again — a recursion that ran
-     * until the stack gave out and left a keyboard adapter, with its own
-     * `keydown` listener, on every turn. Measured: one key pressed, 2,264
-     * strums; one wrong key, the chain gone in a single press. The adapter no
-     * longer answers a stop it never started, and this guard stands whether
-     * it does or not. */
-    if (ev.ready === false && wanted.source === 'detector' && !fellBack) {
-      fellBack = true;
-      label = 'keyboard';
+     * until the stack gave out. The adapter no longer answers a stop it never
+     * started, and this guard stands whether it does or not. */
+    if (ev.ready === false && wanted.source === 'detector' && !refused) {
+      refused = true;
+      label = 'none';
       try { built.adapter.stop(); } catch (_) {}
-      const fallback = createKeysAdapter(port, {});
-      fallback.start();
-      current = fallback;
-      if (live) live.adapter = fallback;
+      try {
+        scene.say(['NO GUITAR CAN BE HEARD HERE', 'FRET FOOD NEEDS THE FEEDBACK DESKTOP BUILD AND A GUITAR PLUGGED IN',
+          'THE KITCHEN STAYS CLOSED'], 9000);
+      } catch (_) {}
     }
     updateBadge();
   });
@@ -555,11 +560,9 @@ async function start({ container, modifiers, sdk }) {
   function tellKeys() {
     if (toldKeys) return;
     toldKeys = true;
-    const expected = wanted.source === 'detector';
-    const lines = [expected ? 'GUITAR NOT HEARD - KEYBOARD ON' : 'KEYBOARD ON'];
+    const lines = ['KEYBOARD ON - FOR DEVELOPMENT - NOTHING IS SCORED'];
     lines.push('C D E F G A B PLAY THE CHORDS - SHIFT FOR THE OTHER ONE');
     lines.push('1 TO 6 PLAY THE 7THS AND THE FLATS - P PAUSES - M MUTES');
-    if (expected) lines.push('A GUITAR NEEDS THE FEEDBACK DESKTOP APP');
     let shared = [];
     try { shared = ['c', 'd', 'e', 'f', 'g', 'a', 'b', 'p'].filter((k) => isTaken(k)); } catch (_) {}
     if (shared.length) lines.push('KEY ' + shared.join(' ').toUpperCase() + ' IS ALSO USED BY THE APP');
@@ -573,7 +576,7 @@ async function start({ container, modifiers, sdk }) {
     try { scene.setSeed(wanted.seed); } catch (_) {}
     if (label === 'keyboard') tellKeys();
     if (!badge) return;
-    const text = label === 'guitar' ? 'GUITAR' : label === 'keyboard' ? 'KEYBOARD' : 'SCRIPT';
+    const text = label === 'guitar' ? 'GUITAR' : label === 'keyboard' ? 'KEYBOARD' : label === 'none' ? 'NO GUITAR' : 'SCRIPT';
     if (badge.textContent !== text) badge.textContent = text;
   }
   updateBadge();
@@ -603,8 +606,11 @@ async function start({ container, modifiers, sdk }) {
     // before its first chord does not use up the first-time tips.
     if (coach && game.state.started) { try { localStorage.setItem(COACHED_KEY, '1'); } catch (_) {} }
     /* The score is the takings scaled by what was chosen — see `scoreOf` —
-     * so a personal best is not beaten by choosing an easier service. */
-    const { score, mult } = scoreOf(game.state.cash, { pace, pans, mode });
+     * so a personal best is not beaten by choosing an easier service. And by
+     * what played: only the guitar scores, the keyboard and the script are
+     * development inputs and report nothing. */
+    const input = label === 'guitar' ? 'guitar' : label === 'keyboard' ? 'keyboard' : 'script';
+    const { score, mult } = scoreOf(game.state.cash, { pace, pans, mode, input });
     try {
       sdk.end({
         score,
@@ -618,7 +624,7 @@ async function start({ container, modifiers, sdk }) {
           cycles: r.cycles, cleanRatio: r.cleanRatio, hash: r.hash,
           comboBest: snap.comboBest, slowest: r.slowest, ear: (current && current.stats && current.stats.ear) || null,
         },
-        summaryHtml: summary(r, snap, { seed: wanted.seed, pace, pans, mode, mult, score }),
+        summaryHtml: summary(r, snap, { seed: wanted.seed, pace, pans, mode, mult, score, input }),
       });
     } catch (e) {
       console.warn('[fret-food] end() complained:', e);
@@ -724,11 +730,14 @@ function summary(r, snap, extra) {
   const pace = String(extra.pace || 'normal');
   const mode = String(extra.mode || 'service');
   const mult = extra.mult === undefined ? 1 : extra.mult;
+  const devInput = extra.input && extra.input !== 'guitar';
   return '<dl class="kc-summary">'
     + (mode !== 'service' ? '<dt>Mode</dt><dd>' + esc(mode.charAt(0).toUpperCase() + mode.slice(1)) + '</dd>' : '')
-    + (mult !== 1
-      ? '<dt>Score</dt><dd>' + esc(money(snap.cash || 0)) + ' <small>x ' + esc(mult.toFixed(2)) + ' for what was chosen = ' + esc(extra.score) + '</small></dd>'
-      : '')
+    + (devInput
+      ? '<dt>Score</dt><dd>' + esc(money(snap.cash || 0)) + ' <small>not scored: played from the ' + esc(extra.input) + ', which is for development</small></dd>'
+      : mult !== 1
+        ? '<dt>Score</dt><dd>' + esc(money(snap.cash || 0)) + ' <small>x ' + esc(mult.toFixed(2)) + ' for what was chosen = ' + esc(extra.score) + '</small></dd>'
+        : '')
     + '<dt>Service</dt><dd>' + esc(snap.levelName || '') + ' <small>level ' + r.level + '</small></dd>'
     + '<dt>Dishes out</dt><dd><b>' + r.served + '</b></dd>'
     + '<dt>Customers lost</dt><dd>' + r.ruined + '</dd>'
@@ -754,18 +763,19 @@ function stop() {
 
 /* ── the settings page ─────────────────────────────────────────────────
  *
- * Three things are a player's and not a service's, and they live here rather
- * than in the hub's picker: which ear hears the guitar, whether the game makes
- * its sounds, and whether to play from the keyboard when a guitar is there.
- * `settings.html` is a shim that asks for `mountSettings`; the page is built
- * here, beside the code that reads the values, with the kit's controls, so
- * the two cannot fall out of step. Values are kept in `localStorage` under
- * the keys the game already read; the default is stored as an absence.
+ * Two things are a player's and not a service's, and they live here rather
+ * than on the options plate: which ear hears the guitar, and whether the game
+ * makes its sounds. The keyboard was a third and is not any more — see
+ * `readWanted` — because a setting is a thing a player finds, and a service
+ * from the keyboard is not one the hub should count. `settings.html` is a
+ * shim that asks for `mountSettings`; the page is built here, beside the code
+ * that reads the values, with the kit's controls, so the two cannot fall out
+ * of step. Values are kept in `localStorage` under the keys the game already
+ * read; the default is stored as an absence.
  */
 const SETTINGS = {
   ear: { key: 'fretfood.ear', fallback: 'auto', values: ['auto', 'easy', 'medium', 'hard'] },
   sound: { key: 'fretfood.sound', fallback: 'on', values: ['on', 'off'] },
-  input: { key: 'fretfood.input', fallback: 'detector', values: ['detector', 'keys'] },
 };
 
 function readSetting(name) {
@@ -817,11 +827,9 @@ function mountSettings(root) {
     'Every sound the game makes is a short knock and never a note, so the microphone that hears your '
     + 'guitar is not fooled by it. M mutes during a service.',
     seg('sound', [['on', 'On'], ['off', 'Off']], 'Sound'));
-  block('INPUT', 'What plays the chords',
-    'The guitar needs the fee[dB]ack desktop build. On the keyboard, C D E F G A B play the chords, '
-    + 'Shift gives the other chord of that letter and 1 to 6 the sevenths and flats; the game says so '
-    + 'when it starts.',
-    seg('input', [['detector', 'Guitar'], ['keys', 'Keyboard']], 'Input'));
+  root.appendChild(c.el('p', 'kc-settings-note',
+    'The chords come from your guitar, through the fee[dB]ack desktop build. There is no keyboard '
+    + 'option: a service played from the keys would not be a service, and the hub would count it.'));
 }
 
 try {

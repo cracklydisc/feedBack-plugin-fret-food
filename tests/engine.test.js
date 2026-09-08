@@ -769,6 +769,19 @@ test('the drills are two or three shapes in a random order, named for their chan
   assert.ok(early.some((c) => ['Em', 'D'].includes(c)), 'the first tier drills the open shapes: ' + [...new Set(early)].join(' '));
 });
 
+test('only the guitar scores: the keyboard and the script report nothing', () => {
+  /* Development inputs, both of them. A hub that counts dB across its games
+   * cannot be handed a service a finger on the C key played. */
+  assert.equal(scoreOf(1000, { input: 'guitar' }).score, 1000);
+  assert.equal(scoreOf(1000, { input: 'keyboard' }).score, 0);
+  assert.equal(scoreOf(1000, { input: 'keyboard' }).mult, 0);
+  assert.equal(scoreOf(1000, { input: 'script' }).score, 0);
+  assert.equal(scoreOf(1000, { pace: 'rush', pans: 5, mode: 'service', input: 'keyboard' }).score, 0, 'no choice buys the keyboard a score');
+  // An input the table has never heard of is not free: it scores.
+  assert.equal(scoreOf(1000, { input: 'midi' }).score, 1000);
+  assert.equal(scoreOf(1000, {}).score, 1000, 'and no input named is the bench, which scores as it always did');
+});
+
 test('the score is the takings scaled by what was chosen', () => {
   assert.equal(scoreOf(1000, { pace: 'normal', pans: 5, mode: 'service' }).score, 1000);
   assert.equal(scoreOf(1000, { pace: 'relaxed', pans: 1, mode: 'service' }).score, 375);

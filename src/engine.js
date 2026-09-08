@@ -270,6 +270,14 @@ export const SCORE_MULT = {
   pace: { relaxed: 0.75, normal: 1, rush: 1.25 },
   pans: [0.5, 0.7, 0.85, 0.95, 1],
   mode: { service: 1, sprint: 1, practice: 0, loop: 0 },
+  /* ONLY THE GUITAR SCORES. The keyboard and the scripted player exist so
+   * the game can be developed and measured without a guitar in the room, and
+   * a hub that counts dB across its games cannot be handed a service that a
+   * finger on the C key played: whatever those two take, they report nothing.
+   * The engine does not know where a chord came from — the glue does, and
+   * says so here. An input the table has never heard of scores, so a source
+   * added later is not silently free; the two that are free are named. */
+  input: { guitar: 1, keyboard: 0, script: 0 },
 };
 
 export function scoreOf(cash, o) {
@@ -277,7 +285,8 @@ export function scoreOf(cash, o) {
   const pace = SCORE_MULT.pace[opt.pace] === undefined ? 1 : SCORE_MULT.pace[opt.pace];
   const pans = SCORE_MULT.pans[Math.min(5, Math.max(1, Number(opt.pans) || 5)) - 1];
   const mode = SCORE_MULT.mode[opt.mode] === undefined ? 1 : SCORE_MULT.mode[opt.mode];
-  const mult = pace * pans * mode;
+  const input = opt.input === undefined || SCORE_MULT.input[opt.input] === undefined ? 1 : SCORE_MULT.input[opt.input];
+  const mult = pace * pans * mode * input;
   return { score: Math.round(Math.max(0, cash || 0) * mult), mult };
 }
 
