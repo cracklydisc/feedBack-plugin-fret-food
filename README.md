@@ -104,6 +104,30 @@ shape had, and the pressure comes back when the counter grows — which is the
 round trip, not the hand. Measured: a slow hand on two pots lasted four to
 seven minutes and now lasts eight to nine.
 
+**How long you actually get, per dish.** The number on a card is seconds, and
+this is what it says when a customer sits down, averaged over a service at the
+normal pace:
+
+| level   | 1    | 2    | 3   | 4   | 5   | 6   | 7   | 8   | 9   |
+|---------|-----:|-----:|----:|----:|----:|----:|----:|----:|----:|
+| seconds | 11.4 | 10.6 | 9.8 | 9.3 | 8.7 | 8.2 | 6.2 | 5.2 | 4.5 |
+
+Relaxed is a third more, rush a fifth less. Inside a level the drift is small:
+the first customer of the opening gets 12.6 s and the nineteenth 10.4.
+
+**Reading a card is not idling.** Past five beats with no strum the pots go
+down half as fast again, which is there to stop a player standing still. It
+used to be three beats at DOUBLE, and measured from the player's chair that
+was brutal in a way nothing on the screen explained: the card shows the
+seconds at the current rate, so at 2.25 s the number being read halved and
+then fell twice as fast. On relaxed a fresh pot went 16.2, 14.2, then 6.9 and
+5.4 — and a pot promising sixteen seconds really lasted nine. Four seconds is
+reading a new card and putting a hand on the neck, which is what a beginner
+does at the start of every dish. So the rule bites later and gentler, and a
+pot the hand has **never fed** is not on that clock at all: a customer who has
+just sat down goes down at their own rate until you have answered them once.
+The card and the customer now agree — it says 16.2 and they leave at 16.0.
+
 **The plates on sticks.** With two pots or more the round trip is what kills:
 cook one pot cleanly and the others cool the whole while, so a player who plays
 one ticket well loses the rest. So every step cooked hands the OTHER pots a

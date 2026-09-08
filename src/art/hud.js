@@ -265,7 +265,9 @@ export function coachText(snap, o) {
       || ((s.stations || []).map((st) => st && st.wants).find(Boolean));
     return want ? 'PLAY ' + label(want) + ' TO OPEN THE KITCHEN' : 'PLAY A CHORD TO OPEN THE KITCHEN';
   }
-  if (s.silent) return 'SILENCE - THE POTS COOL TWICE AS FAST';
+  // Not "twice as fast" any more, and not on a pot nobody has fed yet: see
+  // `SILENCE_BEATS`. The line says the fact and leaves the arithmetic out.
+  if (s.silent) return 'SILENCE - THE POTS GO DOWN FASTER';
   // A customer is lost, and there is a way back: say how far it is.
   if (s.redeemIn !== null && s.redeemIn !== undefined && s.redeemIn > 0) {
     return s.redeemIn + ' CLEAN DISHES WIN A TICKET BACK';

@@ -205,7 +205,32 @@ export const RULES = {
    * So this number sets how fast the lap tightens, not when a single pot
    * becomes impossible. Move it and the run length moves with it. */
   GROW_PER_S: 0.0065,      // was 0.008: with nine services the climb is spread over more of them
-  SILENCE_BEATS: 3,        // past this, everything cools twice as fast
+  /* THE SILENCE, and what it may and may not punish.
+   *
+   * Past this many beats with no strum the pots cool faster. The rule is
+   * there to stop a player standing still, and it was written when cooking
+   * a step meant TWO STRUMS AND A REST — silence was half the gesture then,
+   * and the rule marked where a rest stopped being a rest. One chord is one
+   * step now, and what ends a service is the round trip between pots, so all
+   * the rule still does is decide what happens while nobody plays.
+   *
+   * It was three beats at double rate, and measured from the player's chair
+   * that was brutal in a way nothing on the screen explained. The card shows
+   * the seconds at the CURRENT rate, so at 2.25 s the number a player is
+   * reading HALVES and then falls twice as fast. On the relaxed pace a fresh
+   * pot went 16.2, 14.2, then 6.9 at two and a half seconds and 5.4 at four:
+   * a session reported exactly that, "parto da 15-16 secondi e mi trovo a
+   * partire un piatto con 5". Four seconds is reading a new card and putting
+   * a hand on the neck, which is the one thing a beginner has to do at the
+   * start of every dish.
+   *
+   * So: five beats instead of three (3.75 s, past reading time), and half as
+   * fast again instead of twice — and a pot the player has NEVER FED is not
+   * on this clock at all. A customer who has just sat down is not being
+   * ignored, they are being read; the pot goes down at its own rate and no
+   * faster until the hand has answered it once. See `st.fed`. */
+  SILENCE_BEATS: 5,
+  SILENCE_RATE: 1.5,
   CHAIN_IDLE_BEATS: 4,     // past this, the chain is lost
   CHAIN_MAX: 5,
   SOOT_MAX: 3,
@@ -515,6 +540,10 @@ export function createGame(opts) {
     S.stations.push({
       i: S.stations.length,
       order: null, who: null, step: 0, heat: 0, soot: 0, cookedAt: -1e9, cookedChord: null,
+      /* Whether the hand has answered THIS customer yet. A pot nobody has
+       * fed is not on the silence clock: see `SILENCE_BEATS`. Per order, so
+       * it goes back to false with every new ticket. */
+      fed: false,
       burner: base + (spec.burnerBoost || 0),
       seatAt: S.t,
     });
@@ -647,6 +676,7 @@ export function createGame(opts) {
 
   function seat(st) {
     const spec = levelSpec(S.level);
+    st.fed = false;              // a new ticket has not been answered yet
     const tier = shapesAt(spec, S.level);
     /* Now and then, the critic: see `CRITIC`. Not before the second service,
      * never two at once, and with a dish of their own choosing. */
@@ -676,6 +706,7 @@ export function createGame(opts) {
     st.step = 0;
     st.heat = 0;
     st.soot = 0;
+    st.fed = false;
     st.seatAt = S.t + (served ? R.SEAT_DELAY_MS : R.SEAT_DELAY_LOST_MS);
   }
 
@@ -817,6 +848,8 @@ export function createGame(opts) {
       st.heat = R.HEAT_FULL;
       st.cookedAt = S.t;
       st.cookedChord = chord;
+      st.fed = true;             // answered: from here the silence counts
+
       cooked.push(st);
     }
 
@@ -887,8 +920,7 @@ export function createGame(opts) {
         if (S.running && S.t >= st.seatAt) seat(st);
         continue;
       }
-      const rate = (st.burner + st.soot) * R.COOL * (silent ? 2 : 1);
-      st.heat -= rate * dt;
+      st.heat -= coolRate(st, silent) * dt;
       if (st.heat <= 0) { st.heat = 0; ruin(st); }
     }
 
@@ -951,12 +983,18 @@ export function createGame(opts) {
     return Math.max(R.STARS - R.SOOT_MAX, R.STARS - st.soot);
   }
 
+  /** How fast this pot is going down, right now. The silence multiplies it,
+   *  and only for a pot the hand has already answered once. */
+  function coolRate(st, silent) {
+    const quiet = silent && st.fed ? (R.SILENCE_RATE || 1) : 1;
+    return (st.burner + st.soot) * R.COOL * quiet;
+  }
+
   /* How many seconds a station has left at the current rate. It is the number
    * the player actually reads: "dies in 6" is a decision, "35%" is not. */
   function life(st, silent) {
     if (!st.order) return 0;
-    const rate = (st.burner + st.soot) * R.COOL * (silent ? 2 : 1);
-    return st.heat / Math.max(0.1, rate);
+    return st.heat / Math.max(0.1, coolRate(st, silent));
   }
 
   const game = {

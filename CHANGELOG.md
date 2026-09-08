@@ -48,6 +48,20 @@ All notable changes to this project are documented here. The format follows
   a test. `scoreChord` stays as the fallback for a build with no ML detector,
   with its ties broken on the fretted strings instead of on whichever chord
   the counter happened to list first.
+- **Reading a card is not idling: the silence rule bites later, gentler, and
+  never on a fresh ticket.** Past three beats with no strum everything cooled
+  at DOUBLE rate, and since the card shows the seconds at the current rate the
+  number a player was reading halved at 2.25 s and then fell twice as fast. A
+  session reported it as a balance problem — *parto da 15-16 secondi e mi
+  trovo a partire un piatto con solo 5* — and the measurement found it exactly:
+  on relaxed a fresh pot showed 16.2, 14.2, then 6.9 at two and a half seconds
+  and 5.4 at four, which is the time it takes to read a new card and put a hand
+  on the neck. Worse, the card was lying: a pot promising 16.2 s really lasted
+  9.2. Now the rule bites at five beats instead of three, multiplies by 1.5
+  instead of 2, and does not reach a pot the hand has never fed (`st.fed`) —
+  a customer who has just sat down is being read, not ignored. The card and the
+  customer agree: it says 16.2 and they leave at 16.0. The strip's line drops
+  the arithmetic it no longer does.
 - **The kitchen cools when the menu changes.** The flames climbed from the
   first bell to the last, so the hardest shapes arrived at the tightest clock
   in the game: measured, a pot lived 12.6 s at the Opening and 3.0 s by

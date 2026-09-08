@@ -70,8 +70,14 @@ test('a change that moves more fingers is given more room', () => {
   const far = onePot({ steps: ['C', 'F', 'Dm'], burner: 2.4 });
   assert.ok(dist('C', 'F') > dist('C', 'Am'), 'C to F really is the harder change');
 
-  // A wait that is late for the easy change and in time for the hard one.
-  const WAIT = 2600;
+  /* A wait that is late for the easy change and in time for the hard one.
+   * With a burner of 2.4 the pot goes down 8.64 a second, the one-finger
+   * change is late under 75 and the three-finger one under 65, so anything
+   * between 2.9 and 4.0 seconds separates them. 3.2 sits in the middle of
+   * that and clear of the silence rule at 3.75 — the old 2.6 leaned on the
+   * silence doubling the drain for its last third of a second, and moved
+   * when that rule did. */
+  const WAIT = 3200;
   near.game.strum('C'); step(near.game, WAIT); near.game.strum('Am');
   far.game.strum('C'); step(far.game, WAIT); far.game.strum('F');
   assert.equal(near.st.soot, 1, 'one finger, and this long is late');
@@ -719,6 +725,44 @@ test('the rules may change until the first chord, and the counter is dealt again
   assert.equal(g.setRules({ MAX_STATIONS: 2 }), false);
   assert.equal(g.rules.MAX_STATIONS, 5);
   assert.equal(g.state.stations[0].order, dish);
+});
+
+test('a customer nobody has answered yet is not on the silence clock', () => {
+  /* The complaint this rule was rewritten for: a fresh ticket showed sixteen
+   * seconds, and four seconds of reading the card took it to five. Reading is
+   * not idling — a pot the hand has never fed goes down at its own rate. */
+  const fresh = onePot({ steps: ['C', 'Am'], burner: 2.4 });
+  const fed = onePot({ steps: ['C', 'Am'], burner: 2.4 });
+  fed.game.strum('C');                                  // answered once
+  fed.st.heat = RULES.HEAT_FULL;                        // and full again, so the two compare
+  for (const g of [fresh.game, fed.game]) g.state.lastHitAt = g.state.t;
+  assert.equal(fresh.st.fed, false);
+  assert.equal(fed.st.fed, true);
+
+  const quiet = RULES.BEAT_MS * RULES.SILENCE_BEATS + 1000;
+  step(fresh.game, quiet);
+  step(fed.game, quiet);
+  assert.ok(fresh.st.heat > fed.st.heat, 'the fresh ticket kept more of its pot: '
+    + fresh.st.heat.toFixed(1) + ' against ' + fed.st.heat.toFixed(1));
+  // And the number the card shows is the rate it is really going down at.
+  const card = fresh.game.snapshot().stations[0].life;
+  const rate = (fresh.st.burner + fresh.st.soot) * RULES.COOL;
+  assert.ok(Math.abs(card - fresh.st.heat / rate) < 0.01, 'the fresh card is not multiplied by the silence');
+  assert.ok(fresh.game.silent(), 'and the kitchen IS silent: the rule simply does not reach this pot');
+});
+
+test('the silence still bites, once the hand has answered a pot', () => {
+  const { game, st } = onePot({ steps: ['C', 'Am'], burner: 2.4 });
+  game.strum('C');
+  st.heat = RULES.HEAT_FULL;
+  game.state.lastHitAt = game.state.t;
+  // Just before the line, and just after it.
+  step(game, RULES.BEAT_MS * RULES.SILENCE_BEATS - 200);
+  const before = game.snapshot().stations[0].life;
+  step(game, 400);
+  const after = game.snapshot().stations[0].life;
+  assert.ok(after < before / 1.2, 'the pot is going down faster now: ' + before.toFixed(1) + ' then ' + after.toFixed(1));
+  assert.ok(RULES.SILENCE_RATE < 2, 'and not twice as fast, which is what a session called brutal');
 });
 
 test('a tier of shapes cools the kitchen, a place opening heats it', () => {
