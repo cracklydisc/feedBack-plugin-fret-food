@@ -69,6 +69,11 @@ test('every key sends its own chord, and the capitals the two majors', () => {
     ['A', { shiftKey: true }, 'A'], ['B', { shiftKey: true }, 'Bm'],
     ['F', { shiftKey: true }, 'F#m'], ['C', { shiftKey: true }, 'C#m'],
     ['5', {}, 'Bb'], ['6', {}, 'Eb'],
+    // The small movements on the last digits and the keys above A, the whole
+    // F on r, the two barres of E on y and u, and the bass step on Shift-G.
+    ['7', {}, 'Gsus4'], ['8', {}, 'Dsus4'], ['9', {}, 'Cadd9'],
+    ['q', {}, 'Asus2'], ['w', {}, 'Asus4'], ['r', {}, 'F+'], ['y', {}, 'B'], ['u', {}, 'G#m'],
+    ['G', { shiftKey: true }, 'G/B'],
   ];
   for (const [key, extra] of keymap) { b.tick(100); b.target.press(key, extra); }
 
@@ -253,7 +258,13 @@ test('chordOf does not guess', () => {
   assert.equal(chordOf([{ s: 4, f: 1 }], ['C', 'Am']), null,
     'one string alone sits inside two shapes: better to say no than to guess');
   assert.equal(chordOf([{ s: 1, f: 3 }, { s: 2, f: 2 }], ['C']), 'C',
-    'but if one single shape contains it there is nothing to guess');
+    'but if one single shape the counter wants contains it there is nothing to guess');
+  // Those two strings sit inside C and inside Cadd9 alike: the counter decides.
+  assert.equal(chordOf([{ s: 1, f: 3 }, { s: 2, f: 2 }], ['Cadd9']), 'Cadd9');
+  assert.equal(chordOf([{ s: 1, f: 3 }, { s: 2, f: 2 }], ['C', 'Cadd9']), null,
+    'both wanted, and it is a guess again');
+  assert.equal(chordOf([{ s: 1, f: 3 }, { s: 2, f: 2 }], ['G']), null,
+    'neither wanted, and there is nothing to lean on');
 });
 
 test('a taken hit becomes a strum with its own quality', () => {

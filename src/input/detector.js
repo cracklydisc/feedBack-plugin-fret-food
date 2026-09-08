@@ -180,7 +180,15 @@ export function chordOf(notes, candidates) {
      * but a synthetic chart or a half played chord carries fewer of them. It
      * is accepted only when ONE single shape contains what was heard: if there
      * are two, guessing is worse than saying no. */
-    const within = Object.keys(SHAPES).filter((c) => inside(heard, SHAPES[c]));
+    let within = Object.keys(SHAPES).filter((c) => inside(heard, SHAPES[c]));
+    /* Two shapes can contain the same three strings — C and Cadd9 share the
+     * whole left hand but two fingers — and then the counter decides: if one
+     * of the two is what a pot wants and the other is not, the one wanted is
+     * not a guess. Both wanted, or neither, and it is still no. */
+    if (within.length > 1 && candidates && candidates.length) {
+      const wanted = within.filter((c) => candidates.includes(c));
+      if (wanted.length === 1) within = wanted;
+    }
     if (within.length !== 1) return null;
     name = within[0];
   }
