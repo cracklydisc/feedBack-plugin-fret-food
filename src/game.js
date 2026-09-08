@@ -653,7 +653,10 @@ async function start({ container, modifiers, sdk }) {
        * make one. No onsets means the level is not reaching the app (input
        * device, gain); onsets without names means the ear is too strict for
        * this guitar — try `?fretfood_ear=easy`; `ring` climbing with the
-       * pots cooking is the ear doing its job. */
+       * pots cooking is the ear doing its job. `road` says which of the two
+       * the engine gave us: `notes` is the polyphonic detector naming what
+       * rang, `shapes` the older per-shape scorer, and `air` is the last set
+       * of pitches the notes road heard. */
       input: () => Object.assign({ label, source: wanted.source, pace }, (current && current.stats) || {}),
       // The options plate: whether it is up, and what it says.
       menu: () => ({ open: menuOpen, choices: options.toJSON(), resolved: options.resolved() }),

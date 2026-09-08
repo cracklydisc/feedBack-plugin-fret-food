@@ -29,6 +29,44 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **The chord is named from the notes that are ringing, not from the shapes
+  the counter wants.** Two sessions with a guitar said the same thing: *suono
+  lo stesso accordo a ripetizione e sblocco accordi diversi*. The road that
+  produced it asks the engine how much of each WANTED shape rang and takes the
+  best, so a chord nobody wants can only come back as one of the chords
+  somebody does — and an open string, which rings on almost anything played in
+  first position, counts as evidence for the shapes that have four of them.
+  The engine's polyphonic ML detector (`audio.detectNotes()`, the one
+  `notedetect` gates its own chord timing on) reports the pitches actually in
+  the air, and `nameFrom` names them against the WHOLE vocabulary by recall
+  and precision together: how much of the shape is ringing, and how much of
+  the ringing the shape accounts for. C and Am share four of five pitches and
+  are told apart by the one that differs. A chord nobody ordered comes back as
+  itself and cooks nothing, instead of being pushed onto the nearest ticket.
+  All twenty-eight shapes name themselves exactly, one inside another
+  included — the small F against the whole barre, G/B against G — and that is
+  a test. `scoreChord` stays as the fallback for a build with no ML detector,
+  with its ties broken on the fretted strings instead of on whichever chord
+  the counter happened to list first.
+- **The kitchen cools when the menu changes.** The flames climbed from the
+  first bell to the last, so the hardest shapes arrived at the tightest clock
+  in the game: measured, a pot lived 12.6 s at the Opening and 3.0 s by
+  Closing Time, and the barres were dealt at 4.4 s while C to Am had twelve.
+  A session put it plainly — *tendo a perdere prima di aver provato tutti gli
+  accordi*. A bell that unlocks a tier of SHAPES now takes the burner back
+  down by `TIER_RELIEF` instead of pushing it up, and a bell that opens a
+  PLACE climbs as it always did, so the six shape bells run 12.6 → 8.8 s and
+  the three pan bells 6.7 → 4.5. A slow hand on two pots lasted four to seven
+  minutes and now lasts eight to nine. The wall band in the balance suite
+  moves from `ruined > 5` to `> 1`, and says why: it was never a target, it is
+  the proof that a service can end.
+- **A chip that cannot say the whole chord says so.** The recipe chips are
+  eight pixels wide on a long dish and `Cadd9` is five glyphs, so the preview
+  printed `C` — the same letter as a different chord, and the hand goes to the
+  shape it read before the card arrives. A cut name keeps its root and takes a
+  cyan rule under it, in the colour this game paints everything the hand is
+  told to do with; the big name on the card is the whole of it. `chipText` is
+  pure and every shape in the game is held to it at five chip widths.
 - **The repository is the game, not the workshop.** The art pipeline — the
   prompts and the ComfyUI runner, the roll loop, the cut-out chain, the sprite
   viewer, the brief and the recipe — and every generated take are work files

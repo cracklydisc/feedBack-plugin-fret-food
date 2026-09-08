@@ -84,6 +84,26 @@ Whoever wants fewer pans than that has the options plate: **Burners** caps
 the counter at one to five places for the whole service, and the flames still
 climb. One pan is the drill with nothing else on the screen.
 
+**The kitchen cools when the menu changes.** The flames climb from the first
+bell to the last, so the hardest shapes used to arrive at the tightest clock
+in the game: a pot lived twelve and a half seconds at the Opening and four by
+Closing Time, and the barres were dealt at six while C to Am had twelve. That
+is the difficulty curve upside down, and a session said so — *I lose before I
+have played all the chords*. So a bell that unlocks a TIER OF SHAPES takes the
+burner back down instead of pushing it up, and a bell that opens a PLACE
+climbs as it always did:
+
+| bell            | 1    | 2    | 3    | 4    | 5   | 6   | 7   | 8   | 9   |
+|-----------------|-----:|-----:|-----:|----:|----:|----:|----:|----:|----:|
+| before          | 12.6 |  9.6 |  7.5 | 6.2 | 5.2 | 4.4 | 3.8 | 3.4 | 3.0 |
+| now             | 12.6 | 11.6 | 10.8 |10.0 | 9.4 | 8.8 | 6.7 | 5.4 | 4.5 |
+
+Seconds a pot lives; the first six bells are the tiers of shapes and the last
+three are the pans. A new shape is met with about as much time as the last new
+shape had, and the pressure comes back when the counter grows — which is the
+round trip, not the hand. Measured: a slow hand on two pots lasted four to
+seven minutes and now lasts eight to nine.
+
 **The plates on sticks.** With two pots or more the round trip is what kills:
 cook one pot cleanly and the others cool the whole while, so a player who plays
 one ticket well loses the rest. So every step cooked hands the OTHER pots a
@@ -138,6 +158,12 @@ that pot has left, because "dies in 6" is a decision and "35%" is not. Under
 the pan, on the stove front, the stars and what the dish pays if it goes out
 now — price times multiplier, plus the tip while the pot is clean — in gold,
 which is the one colour money has on this screen.
+
+A chip too narrow for its chord's whole name — `Cadd9` in a chip cut for `Am`
+— prints the root and takes a **cyan rule** under it: the letter is not the
+whole chord, and the big name and the fingering on the card are. Without that
+mark the preview showed a C where a Cadd9 was coming, which is worse than
+showing nothing: the hand goes to the shape it read.
 
 On the right of every ticket is the fingering for the chord that ticket owes:
 six strings, four fret spaces, a numbered dot per finger, `o` and `x` over the
@@ -337,10 +363,51 @@ and `src/input/engine.js` is the adapter:
   best". The open strings are scored with the shape, which is what makes the
   comparison sharp — play C and Am's expected open A comes back wrong.
 
-The engine's ratio of strings that rang becomes the strum's `quality`, and the
-game already treats quality under 0.8 as a dirty strum that leaves soot. "How
-cleanly it came out" and "how much of it rang" turn out to be the same number,
-so nothing new had to be invented to make a half-ringing chord cost the tip.
+### And then a fifth road, which is the one it runs on
+
+Two sessions with a guitar reported the same thing: *I play the same chord
+over and over and it unlocks different chords*. The road above cannot help
+doing that, and it is worth being precise about why, because the fault is in
+the question and not in the engine.
+
+It asks **how much of each WANTED shape rang**. So a chord nobody wants can
+only ever come back as one of the chords somebody does — play a C while the
+counter wants Am and G and the answer is Am or G, whichever rang more of
+itself. And what rings is not neutral: an **open string sounds on almost
+anything played in first position**, and Em is four open strings out of six,
+G three. They collect most of their ratio for nothing.
+
+The engine has a second thing to offer and it is the better one:
+
+```js
+window.feedBackDesktop.audio.detectNotes()
+// → { notes: [ { midi, confidence, onsetMs, onsetSeq } ] }
+```
+
+That is the polyphonic ML detector reporting the pitches **actually ringing**
+— `notedetect` gates its own chord timing on it. With the pitches in hand,
+naming a chord stops being a similarity contest and becomes arithmetic. A
+shape is a set of pitches; for each of the game's shapes, how much of the
+shape is in the air (recall) and how much of the air the shape accounts for
+(precision), and the best harmonic mean wins. Both halves are needed: C and Am
+share four of their five pitches, so recall alone cannot tell them apart, and
+what does is the one pitch that differs — a C3 is ringing and Am has no C3 in
+it.
+
+The result is a chord named as **itself**, out of the whole vocabulary. Play a
+C while the counter wants Am and G, and the answer is "a C, which nobody
+ordered": no pot heats, nothing is charged, and the next strum of that same C
+is the hand still holding it rather than a change. Twenty-eight shapes, every
+one of which names itself exactly and none of which names another — that is a
+test, not a hope.
+
+`scoreChord` stays as the fallback for a build with no ML detector, with its
+ties broken on the fretted strings, since the open ones are nearly free.
+
+The fit becomes the strum's `quality`, and the game already treats quality
+under 0.8 as a dirty strum that leaves soot. "How cleanly it came out" and
+"how much of the chord was really there" turn out to be the same number, so
+nothing new had to be invented to make a half-played chord cost the tip.
 
 It needs the **desktop app** — the scorer lives in the native engine. In a
 browser or the dev server the adapter says so through `status { ready: false }`
@@ -388,10 +455,10 @@ and not an opinion. Seed 7, ten minutes of clock, one run per detector profile:
 
 | detector      | lasted | level | takings | clean steps |
 |---------------|-------:|------:|--------:|------------:|
-| perfect       |  555 s |    10 | $68,381 |         90% |
-| latency only  |  522 s |     9 | $63,412 |         94% |
-| realistic     |  510 s |     9 | $51,428 |         92% |
-| worst         |  511 s |     9 | $42,311 |         88% |
+| perfect       |  596 s |    10 | $69,400 |         92% |
+| latency only  |  549 s |    10 | $60,390 |         97% |
+| realistic     |  532 s |     9 | $55,836 |         96% |
+| worst         |  501 s |     9 | $42,038 |         96% |
 
 The point of that table is the shape, not the numbers: a bad ear costs money
 and clean steps, and does not break the game. It also says what ends a run.
