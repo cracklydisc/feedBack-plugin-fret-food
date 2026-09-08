@@ -1,0 +1,322 @@
+{
+  "cellSize": [
+    60,
+    112
+  ],
+  "sheets": {
+    "player": {
+      "cols": 1,
+      "rows": 1,
+      "cell": [
+        60,
+        104
+      ],
+      "frames": [
+        "idle"
+      ]
+    },
+    "cust-01": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-02": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-03": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-04": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-05": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-06": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-07": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-08": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-09": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-10": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-11": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-12": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        52
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "pans": {
+      "cols": 3,
+      "rows": 4,
+      "cell": [
+        49,
+        31
+      ],
+      "frames": [
+        "skillet",
+        "saucepan",
+        "stockpot",
+        "spare-00",
+        "casserole",
+        "spare-01",
+        "spare-03",
+        "roasting",
+        "tub",
+        "fryer",
+        "spare-02",
+        "bowl"
+      ]
+    },
+    "mark": {
+      "cols": 1,
+      "rows": 1,
+      "cell": [
+        152,
+        150
+      ],
+      "frames": [
+        "idle"
+      ]
+    },
+    "cooks": {
+      "cols": 5,
+      "rows": 4,
+      "cell": [
+        30,
+        34
+      ],
+      "frames": [
+        "cook-00",
+        "cook-01",
+        "cook-02",
+        "cook-03",
+        "cook-04",
+        "cook-05",
+        "cook-06",
+        "cook-07",
+        "cook-08",
+        "cook-09",
+        "cook-10",
+        "cook-11",
+        "cook-12",
+        "cook-13",
+        "cook-14",
+        "cook-15",
+        "cook-16",
+        "cook-17",
+        "cook-18",
+        "cook-19"
+      ]
+    },
+    "props": {
+      "cols": 6,
+      "rows": 6,
+      "cell": [
+        26,
+        30
+      ],
+      "frames": [
+        "prop-00",
+        "prop-01",
+        "prop-02",
+        "prop-03",
+        "prop-04",
+        "prop-05",
+        "prop-06",
+        "prop-07",
+        "prop-08",
+        "prop-09",
+        "prop-10",
+        "prop-11",
+        "prop-12",
+        "prop-13",
+        "prop-14",
+        "prop-15",
+        "prop-16",
+        "prop-17",
+        "prop-18",
+        "prop-19",
+        "prop-20",
+        "prop-21",
+        "prop-22",
+        "prop-23",
+        "prop-24",
+        "prop-25",
+        "prop-26",
+        "prop-27",
+        "prop-28",
+        "prop-29"
+      ]
+    },
+    "crowd-a": {
+      "cols": 3,
+      "rows": 2,
+      "cell": [
+        36,
+        64
+      ],
+      "frames": [
+        "crowd-00",
+        "crowd-01",
+        "crowd-02",
+        "crowd-03",
+        "crowd-04",
+        "crowd-05"
+      ]
+    },
+    "crowd-b": {
+      "cols": 3,
+      "rows": 2,
+      "cell": [
+        30,
+        57
+      ],
+      "frames": [
+        "crowd-06",
+        "crowd-07",
+        "crowd-08",
+        "crowd-09",
+        "crowd-10",
+        "crowd-11"
+      ]
+    }
+  }
+}
