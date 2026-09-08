@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fret Food: preview of the scene</title>
+<link rel="stylesheet" href="../assets/fret-food.css">
+<style>
+  /*
+   * A fake hub. The real one gives the game a box with `position: absolute;
+   * inset: 0` and `overflow: hidden`, of a size the game does not know. This
+   * page does the same and lets the box be resized, because the one question
+   * about a scene is what it does in a box it did not choose.
+   *
+   * Everything on this page outside the box is test rig, styled with literal
+   * colours on purpose: it is not part of the plugin and the kit's rules do
+   * not apply to it. Only `assets/fret-food.css` is checked.
+   */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    box-sizing: border-box;
+    background: #1c1618;
+    color: #d8ccb8;
+    font: 13px/1.4 ui-monospace, Consolas, monospace;
+  }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+  button {
+    font: inherit; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+    background: #2a2226; color: #f4b23a; border: 1px solid #6a4e3a;
+  }
+  button[aria-pressed="true"] { outline: 2px solid #f4b23a; }
+  #box {
+    position: relative;
+    width: 900px;
+    height: 520px;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid #3a2a20;
+    background: #0a0809;
+  }
+  #box > .mg-game-root { position: absolute; inset: 0; }
+  .note { color: #8e8880; max-width: 900px; text-align: center; }
+  #log { color: #8e8880; font-size: 12px; max-width: 900px; width: 100%; white-space: pre; overflow: hidden; height: 4.2em; }
+</style>
+</head>
+<body>
+
+<div id="box"><div class="mg-game-root" id="root"></div></div>
+
+<div class="bar">
+  <button id="b-serve">serve one now</button>
+  <button id="b-ruin">lose one now</button>
+  <button id="b-dirty">dirty strum</button>
+  <button id="b-miss">miss</button>
+  <button id="b-level">next level now</button>
+  <button id="b-pause">pause</button>
+  <button id="b-restart">restart</button>
+  <span class="note">box:</span>
+  <button data-w="1200" data-h="640">1200</button>
+  <button data-w="900" data-h="520" aria-pressed="true">900</button>
+  <button data-w="600" data-h="420">600</button>
+  <button data-w="900" data-h="300">900 x 300</button>
+  <button data-w="960" data-h="540">960 x 540</button>
+</div>
+<p class="note">A real service plays itself here: the engine, the automatic player with a realistic detector's flaws, the real clock and the scene, wired as <code>game.js</code> wires them. Levels last 25 seconds instead of 60 so the whole ladder goes by while you watch: the shapes first, on two pans, then the third, fourth and fifth burners.</p>
+<div id="log"></div>
+
+<script type="module">
+import { createGame } from '../src/engine.js';
+import { MENU, LEVELS, chordsUpTo } from '../src/menu.js';
+import { createClock } from '../src/clock.js';
+import { createPort } from '../src/input/port.js';
+import { createFlaws } from '../src/input/flaws.js';
+import { botAdapter } from '../src/bot.js';
+import { createScene } from '../src/scene.js';
+
+const root = document.getElementById('root');
+const logEl = document.getElementById('log');
+const RENDER_HZ = 20;
+const EVENTS = ['seat', 'strum', 'miss', 'open', 'cycle', 'step', 'serve', 'ruin', 'level', 'chainLost', 'over'];
+let live = null;
+const lines = [];
+function log(s) {
+  lines.push(s);
+  while (lines.length > 3) lines.shift();
+  logEl.textContent = lines.join('\n');
+}
+
+function rng(seed) {
+  let s = seed >>> 0 || 1;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+/* The same wiring as `game.js`, with two changes: the level lasts 25 s, and
+ * the game is kept in `live` so the buttons can reach into it. */
+function start(seed) {
+  stop();
+  const game = createGame({ menu: MENU, levels: LEVELS, seed, rules: { LEVEL_MS: 25000 } });
+  const scene = createScene(root);
+  const port = createPort('bot');
+  const adapter = botAdapter(port, game, { flaws: createFlaws('real', rng(seed), { pool: chordsUpTo(6) }) });
+  const clock = createClock();
+  let lastRender = -1e9;
+  let paused = false;
+
+  port.on('strum', (ev) => {
+    if (!game.state.running) return;
+    game.strum(ev.chord === undefined ? null : ev.chord, ev.quality);
+  });
+  for (const n of EVENTS) {
+    game.on(n, (e) => {
+      scene.event(n, e);
+      if (n === 'serve') log('serve  ' + e.who.name + ' ' + e.dish.dish + '  +$' + e.money + (e.tip ? ' tip' : ''));
+      if (n === 'ruin') log('ruin   ' + e.who.name + ' ' + e.dish.dish + '  strikes ' + e.strikes);
+      if (n === 'level') log('level  ' + e.level + ' ' + e.name + '  ' + e.stations + ' stations');
+      if (n === 'over') log('over   $' + game.state.cash);
+    });
+  }
+
+  function render() {
+    const now = clock.now();
+    if (now - lastRender < 1000 / RENDER_HZ) return;
+    lastRender = now;
+    scene.update(game.snapshot());
+  }
+
+  adapter.start(clock);
+  scene.update(game.snapshot());
+  clock.start((dt, t) => {
+    if (paused) return;
+    adapter.pump(t);
+    game.tick(dt);
+  }, render);
+
+  live = {
+    game, scene, clock, adapter,
+    get paused() { return paused; },
+    set paused(v) { paused = v; },
+  };
+  // The same back door `game.js` opens, plus the objects a preview wants to poke.
+  window.__fretfood = { snapshot: () => game.snapshot(), state: () => game.state, game, scene };
+}
+
+function stop() {
+  if (!live) return;
+  live.clock.stop();
+  try { live.adapter.stop(); } catch (_) {}
+  live.scene.destroy();
+  live = null;
+}
+
+start(7);
+
+/* A dish out now: the busiest live station is put on its last step, above the
+ * line, and the two strums are played; the engine's own rest serves it. */
+document.getElementById('b-serve').onclick = () => {
+  if (!live) return;
+  const S = live.game.state;
+  const st = S.stations.filter((s) => s.order).sort((a, b) => b.step - a.step)[0];
+  if (!st) return;
+  st.step = st.order.steps.length - 1;
+  st.heat = 92;
+  const chord = st.order.steps[st.step];
+  live.game.strum(chord);
+  setTimeout(() => live && live.game.strum(chord), 200);
+};
+
+/* A customer lost now: the pot is set almost cold and the next tick kills it. */
+document.getElementById('b-ruin').onclick = () => {
+  if (!live) return;
+  const st = live.game.state.stations.filter((s) => s.order).sort((a, b) => a.heat - b.heat)[0];
+  if (st) st.heat = 0.05;
+};
+
+document.getElementById('b-dirty').onclick = () => {
+  if (!live) return;
+  const chord = live.game.snapshot().wants[0];
+  if (chord) live.game.strum(chord, 0.5);
+};
+
+document.getElementById('b-miss').onclick = () => { if (live) live.game.strum('B7'); };
+
+document.getElementById('b-level').onclick = () => {
+  if (!live) return;
+  live.game.state.nextLevelAt = live.game.state.t;
+};
+
+const pauseBtn = document.getElementById('b-pause');
+pauseBtn.onclick = () => {
+  if (!live) return;
+  live.paused = !live.paused;
+  live.scene.setPaused(live.paused ? { title: 'PAUSED', sub: 'PREVIEW HELD - RESUME FROM THE BAR BELOW' } : null);
+  pauseBtn.textContent = live.paused ? 'resume' : 'pause';
+};
+
+let seed = 7;
+document.getElementById('b-restart').onclick = () => { seed++; start(seed); pauseBtn.textContent = 'pause'; };
+
+const box = document.getElementById('box');
+for (const b of document.querySelectorAll('[data-w]')) {
+  b.onclick = () => {
+    box.style.width = b.dataset.w + 'px';
+    box.style.height = b.dataset.h + 'px';
+    for (const o of document.querySelectorAll('[data-w]')) o.setAttribute('aria-pressed', o === b ? 'true' : 'false');
+  };
+}
+</script>
+
+</body>
+</html>

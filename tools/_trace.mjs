@@ -1,0 +1,12 @@
+import { RULES } from '../src/engine.js';
+import { onePot } from '../tests/harness.js';
+import { STEP_MS } from '../src/clock.js';
+const B = RULES.BEAT_MS;
+const { game, st } = onePot({ burner: 5.5, heat: RULES.HEAT_STEP });
+game.on('ring', e => console.log('  RING t=' + game.state.t, 'cotte=' + JSON.stringify(e.cooked), 'calore=' + st.heat.toFixed(2)));
+game.on('strum', e => console.log('  colpo t=' + game.state.t, 'gain=' + e.gain, 'calore=' + st.heat.toFixed(2)));
+const step = (ms) => { for (let t = 0; t < ms; t += STEP_MS) game.tick(STEP_MS); };
+console.log('inizio calore', st.heat.toFixed(2), 'fornello', st.burner, 'passi', JSON.stringify(st.order.steps));
+step(B); console.log('dopo un battito', st.heat.toFixed(2));
+game.strum('C'); step(B/2); game.strum('C'); step(B+60);
+console.log('fine calore', st.heat.toFixed(2), 'passo', st.step, 'LINEA', RULES.READY);
