@@ -3,30 +3,14 @@ __pycache__/
 .DS_Store
 node_modules/
 
-# The art pipeline's takes. ComfyUI writes every roll of every sheet here
-# (`name-t1.png`, `name-lora0.35.png`, `style*`, `sz-*` ...) and a hundred of
-# them weigh seventy megabytes. What the game is cut from is kept: one source
-# per sheet in the atlas, under the sheet's own name, plus the two the house
-# mark comes from. Everything else is a take that lost.
-assets/art/raw/*
-!assets/art/raw/cooks.png
-!assets/art/raw/crowd-a.png
-!assets/art/raw/crowd-b.png
-!assets/art/raw/cust-01.png
-!assets/art/raw/cust-02.png
-!assets/art/raw/cust-03.png
-!assets/art/raw/cust-04.png
-!assets/art/raw/cust-05.png
-!assets/art/raw/cust-06.png
-!assets/art/raw/cust-07.png
-!assets/art/raw/cust-08.png
-!assets/art/raw/cust-09.png
-!assets/art/raw/cust-10.png
-!assets/art/raw/cust-11.png
-!assets/art/raw/cust-12.png
-!assets/art/raw/pans.png
-!assets/art/raw/player.png
-!assets/art/raw/props.png
-!assets/art/raw/mark.png
-!assets/art/raw/mark-cut.png
-!assets/art/raw/logo-gibson.jpg
+# The workshop, not the game. The art pipeline — the prompts and the ComfyUI
+# runner, the roll loop, the cut-out chain, the sprite viewer, the brief and
+# the recipe — and every generated take live on the machine that draws the
+# sprites, and only there. The repository ships the sprites in `assets/art/`
+# and the atlas that says where each frame is: somebody who clones this
+# wants the game, not seventy megabytes of takes behind it.
+assets/art/raw/
+tools/art/
+tools/sprites.html
+docs/asset-brief.md
+docs/prompts.md

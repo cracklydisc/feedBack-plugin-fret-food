@@ -434,14 +434,14 @@ which is what makes the rest of this section possible.
   --seconds 600` plays a whole service headless and prints the report. Twenty
   seeds run in a shell loop in a few seconds, and the balance tests measure
   exactly what it prints, not a copy of their own.
-- **The art.** `tools/art/` holds the sheets' prompts (`sheets.mjs`), the
-  ComfyUI runner (`generate.mjs`), the roll-until-it-fits loop (`roll.mjs`)
-  and the cut-out chain (`process.py`): a generated sheet becomes game sprites
-  through a reduction to the cell size, a quantise, a chroma key and a fixed
-  box, and `assets/art/atlas.json` says where every frame is.
-  `docs/asset-brief.md` is the brief and `docs/prompts.md` the recipe;
-  `assets/art/raw/` keeps the one source each sheet was cut from, and the
-  takes that lost are ignored by git.
+- **The art.** The sprite sheets in `assets/art/` were generated with a local
+  diffusion model and cut down to game pixels — a reduction to the cell size,
+  a quantise, a chroma key and a fixed box — by a pipeline of prompts, a
+  runner and a cut-out chain that is not in this repository. It is a
+  workshop: seventy megabytes of takes behind three hundred kilobytes of
+  sprites, and a clone should download the game. `assets/art/atlas.json` says
+  where every frame is, and the game draws its own pixels for any frame the
+  atlas does not have.
 - **Against a checkout.** Point the app at a directory of junctions or
   symlinks, one per plugin, with `FEEDBACK_PLUGINS_DIR=/path/to/dev-plugins`,
   and an edit is live on the next reload. The host reads `plugin.json` at

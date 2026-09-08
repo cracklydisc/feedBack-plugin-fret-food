@@ -27,6 +27,15 @@ All notable changes to this project are documented here. The format follows
     which the small font used to uppercase by accident, are uppercased on
     purpose now. `docs/chords.svg` prints the frets under every shape.
 
+### Changed
+
+- **The repository is the game, not the workshop.** The art pipeline — the
+  prompts and the ComfyUI runner, the roll loop, the cut-out chain, the sprite
+  viewer, the brief and the recipe — and every generated take are work files
+  and stay out of git: the repository carries the sprites the game ships and
+  the atlas that places them, and nothing of the seventy megabytes behind
+  them.
+
 ## [0.1.0] - 2026-09-08
 
 First release. Fret Food is a chain and not a single trattoria, so the
