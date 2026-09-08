@@ -1,0 +1,41 @@
+{
+  "id": "fret-food",
+  "name": "Fret Food",
+  "version": "0.1.0",
+  "script": "screen.js",
+  "scriptType": "module",
+  "styles": "assets/fret-food.css",
+  "category": "practice",
+  "description": "Chord-change practice as an arcade kitchen. Every order is a progression; play the chord the ticket wants and that step is cooked. The pot is the clock: change before it drops under the line and the step comes out clean.",
+  "icon": "assets/thumb.png",
+  "minigame": {
+    "title": "Fret Food",
+    "tagline": "Cook the order. Play the chord the ticket wants and the step is done. Pace, burners and mode are chosen at the counter.",
+    "type": "chart-free",
+    "scoring": "chord",
+    "thumbnail": "thumb.png",
+    "unlocks": [
+      {
+        "id": "critic",
+        "xp": 300,
+        "label": "The critic starts visiting"
+      },
+      {
+        "id": "sprint",
+        "xp": 1000,
+        "label": "Sprint: three minutes, all in"
+      },
+      {
+        "id": "signature",
+        "xp": 2500,
+        "label": "The signature menu: more dishes at every tier"
+      }
+    ]
+  },
+  "settings": {
+    "html": "settings.html"
+  },
+  "standards": [
+    "plugin-runtime-idempotent.v1"
+  ]
+}

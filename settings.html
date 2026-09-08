@@ -1,0 +1,49 @@
+<!--
+  Fret Food settings.
+
+  Deliberately almost empty, the same as Riff Repeater's and Live Tab's: the
+  page is built by `window.fretFood.mountSettings`, declared once in
+  `src/game.js` beside the code that reads the values, so this file cannot fall
+  out of step with what the game actually does with them.
+
+  Three things live here and nothing else: which ear hears the guitar (AUTO,
+  which lets the first chord decide, or a pinned grade), whether the game makes
+  its sounds, and whether to play from the keyboard when a guitar is there.
+  Everything a player chooses per service — pace, burners, mode — is in the
+  hub's picker, where a per-service choice belongs.
+-->
+<div id="ff-settings" class="p-4 text-sm text-fb-textDim">
+  Loading Fret Food settings…
+</div>
+
+<script>
+(function () {
+    const root = document.getElementById('ff-settings');
+    if (!root) return;
+
+    function mount() {
+        const ff = window.fretFood;
+        if (!ff || typeof ff.mountSettings !== 'function') return false;
+        ff.mountSettings(root);
+        return true;
+    }
+
+    // The plugin's script loads with the app, but a cold settings screen can
+    // render first. Retry briefly, then say so rather than sitting on
+    // "Loading" for ever: the failure a reader actually hits is a disabled
+    // plugin, and "Loading…" tells them nothing about it.
+    if (!mount()) {
+        let tries = 0;
+        const timer = setInterval(() => {
+            tries += 1;
+            if (mount() || tries > 40) {
+                clearInterval(timer);
+                if (!window.fretFood) {
+                    root.textContent = 'Fret Food has not loaded. Restart fee[dB]ack, '
+                        + 'or check that the plugin is enabled on the Plugins page.';
+                }
+            }
+        }, 250);
+    }
+})();
+</script>
