@@ -33,20 +33,34 @@
  * second set of numbers tuned by ear against the same engine would be a worse
  * set of numbers.
  *
- * ── WHICH CHORD WAS IT ─────────────────────────────────────────────────
+ * ── WHICH CHORD WAS IT: THE NOTES, WHEN THE ENGINE HAS THEM ────────────
  *
- * Strum Fighter only ever asks about ONE shape, because it is a shooter and
- * you are aimed at one enemy. This game has one to five pots wanting one to
- * five different chords, so on every strum it scores EVERY candidate and takes
- * the best. That is the whole difference, and it is the reason the fixed
- * `minHitRatio` that sank the `setVerifyTarget` road does not matter here: we
- * never ask "did this pass a threshold", we ask "which of these fits best".
- * C and Am both clear half their strings on either chord; C played scores
- * higher against C than against Am, and the comparison is the answer.
+ * The engine has a second thing to offer and it is the better one:
  *
- * The open strings are part of the shape and are scored with it, which is what
- * makes that comparison sharp. Play C (x32010) and Am's expected open A and
- * fretted G both come back wrong, because you are holding a C.
+ *     window.feedBackDesktop.audio.detectNotes()
+ *       → { notes: [ { midi, confidence, onsetMs, onsetSeq } ] }
+ *
+ * That is the polyphonic ML detector (Basic Pitch) reporting the pitches
+ * actually ringing, and `notedetect` gates its own chord timing on it. With
+ * the pitches in hand, naming a chord stops being a similarity contest and
+ * becomes arithmetic: a shape is a set of pitches, and the answer is the
+ * shape whose set the air agrees with — see `nameFrom`. One call, the whole
+ * vocabulary compared locally, and a chord nobody wants comes back named as
+ * itself instead of being pushed onto the nearest thing on the counter.
+ *
+ * ── AND `scoreChord`, WHEN IT DOES NOT ─────────────────────────────────
+ *
+ * On a build with no ML detector the fallback is Strum Fighter's road: ask
+ * the engine how much of ONE shape rang, for every chord the counter wants,
+ * and take the best. It works, and its weakness is worth writing down because
+ * it is what the second road exists to fix: `score` is strings-that-rang over
+ * strings-in-the-shape, and an OPEN string rings on almost anything played in
+ * first position. Em is four open strings out of six, G three: on a strummed
+ * C they score most of their ratio for nothing, and the shape with the most
+ * open strings drifts to the top of a comparison it should lose. What is left
+ * of the difference is the fretted strings, so a tie there is broken by them
+ * (`bestFit`), and a session with a guitar still reported the rest: "suono lo
+ * stesso accordo e sblocco accordi diversi".
  *
  * ── WHAT THE GAME GETS ─────────────────────────────────────────────────
  *
@@ -143,18 +157,23 @@ const SCORE_MODE = {
  *   floor             below this, the best fit is not a fit: nothing was played
  *                     that resembles any chord on the counter
  */
+/* `fit` and `conf` are the note road's two: how well the pitches in the air
+ * have to agree with a shape before it is named (`nameFrom`), and how sure
+ * the detector has to be of a pitch before it counts as ringing at all. The
+ * confidence is `notedetect`'s own scale, where the app's default is 0.20 and
+ * the slider stops at 0.50. */
 export const EARS = {
   easy: {
     pitchCheckCents: 80, minHitRatio: 0.28, harmonicSnr: 2.0, fundamentalRatio: 0.12,
-    floor: 0.34, level: 0.03, slope: 0.02,
+    floor: 0.34, level: 0.03, slope: 0.02, fit: 0.50, conf: 0.15,
   },
   medium: {
     pitchCheckCents: 65, minHitRatio: 0.34, harmonicSnr: 2.4, fundamentalRatio: 0.15,
-    floor: 0.42, level: 0.05, slope: 0.03,
+    floor: 0.42, level: 0.05, slope: 0.03, fit: 0.58, conf: 0.20,
   },
   hard: {
     pitchCheckCents: 50, minHitRatio: 0.50, harmonicSnr: 3.2, fundamentalRatio: 0.22,
-    floor: 0.50, level: 0.07, slope: 0.04,
+    floor: 0.50, level: 0.07, slope: 0.04, fit: 0.66, conf: 0.30,
   },
 };
 
@@ -229,6 +248,87 @@ export function engineNotes(chord) {
   return out.length ? out : null;
 }
 
+/* Standard tuning, low E first, as MIDI. The same table the engine keeps
+ * (`_ND_TUNING_GUITAR_6`), and it has to be: a pitch we compute has to be the
+ * pitch it reports. */
+export const TUNING = [40, 45, 50, 55, 59, 64];
+
+/** The pitches a shape puts in the air, low to high. Muted strings are not in it. */
+export function pitchesOf(chord) {
+  const s = SHAPES[chord];
+  if (!s) return null;
+  const out = [];
+  s.frets.forEach((f, i) => { if (f >= 0) out.push(TUNING[i] + f); });
+  return out.length ? out : null;
+}
+
+const PITCHES = {};
+for (const name of Object.keys(SHAPES)) PITCHES[name] = pitchesOf(name);
+
+/* A pitch the ear reports that the shape does not contain can still BE the
+ * shape: a string's own partials are an octave and an octave-and-a-fifth
+ * above it, and the detector reports the loud ones as notes. Those two
+ * intervals are forgiven; anything else ringing is a note the shape does not
+ * explain, and that is the whole discrimination — C and Am differ by one
+ * pitch, and it is the one that decides. */
+const PARTIALS = [12, 19, 24];
+
+/**
+ * WHICH CHORD IS RINGING, out of everything this game knows.
+ *
+ * `heard` is the pitches the detector reports. For every shape, two numbers:
+ * how much of the SHAPE is in the air (recall), and how much of the AIR the
+ * shape accounts for (precision). Their harmonic mean is the fit, and the
+ * best fit wins if it clears `floor`.
+ *
+ * Both halves are needed and it is worth saying why, because the road this
+ * replaces had only the first. Recall alone is what `scoreChord` gives, and
+ * on a strummed C the Am shape recalls four of its five pitches — they share
+ * everything but one string. Precision is what notices that a C3 is ringing
+ * and Am has no C3 in it. One pitch of difference, and the answer comes out
+ * of the pitch that differs rather than the four that do not.
+ *
+ * A shape is allowed to be incomplete — a muted string, a finger that did not
+ * press — so recall is forgiving. What it may not be is a shape with notes in
+ * it that nobody played.
+ */
+export function nameFrom(heard, opts) {
+  const o = opts || {};
+  const floor = o.floor === undefined ? 0.55 : o.floor;
+  const air = [...new Set((heard || []).filter((n) => Number.isFinite(n)).map((n) => Math.round(n)))];
+  if (!air.length) return null;
+  const only = o.only && o.only.length ? o.only : Object.keys(PITCHES);
+  let best = null;
+  for (const chord of only) {
+    const want = PITCHES[chord];
+    if (!want || !want.length) continue;
+    /* The pitch itself, and not its octave. Forgiving the octave here cost
+     * exactly the pair this has to get right: the small F (xx3211) is the
+     * whole F (133211) without its two lowest strings, and those two are an
+     * octave below two of the four that remain — so a lenient recall heard
+     * the whole barre in a hand playing the little shape, and G/B the same
+     * way against G. One shape inside another is told apart by what is NOT
+     * ringing, which means recall has to be literal. */
+    let hit = 0;
+    for (const p of want) if (air.includes(p)) hit++;
+    let known = 0;
+    for (const h of air) {
+      if (want.includes(h) || PARTIALS.some((k) => want.includes(h - k))) known++;
+    }
+    const recall = hit / want.length;
+    const precision = known / air.length;
+    if (!recall || !precision) continue;
+    const fit = (2 * recall * precision) / (recall + precision);
+    /* A tie goes to the shape with more of itself in the air: between two
+     * that fit equally, the one with more strings confirmed has more behind
+     * it. It is the same rule `bestFit` breaks its ties with. */
+    if (!best || fit > best.fit + 1e-9 || (Math.abs(fit - best.fit) <= 1e-9 && hit > best.hit)) {
+      best = { chord, fit, hit, recall, precision };
+    }
+  }
+  return best && best.fit >= floor ? best : null;
+}
+
 /** The engine's audio bridge, or `null` when this is not a desktop build. */
 export function audioBridge(win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
@@ -236,7 +336,10 @@ export function audioBridge(win) {
   // so the game works on a build that still carries the old name.
   const host = w && (w.feedBackDesktop || w.slopsmithDesktop);
   const audio = host && host.audio;
-  if (!audio || typeof audio.scoreChord !== 'function' || typeof audio.getLevels !== 'function') return null;
+  if (!audio || typeof audio.getLevels !== 'function') return null;
+  // Either road will do, and `detectNotes` is the better one: a build with
+  // only the shape scorer is still a build this game can be played on.
+  if (typeof audio.scoreChord !== 'function' && typeof audio.detectNotes !== 'function') return null;
   return audio;
 }
 
@@ -257,11 +360,37 @@ export function bestFit(scored, floor) {
     const score = Number(s.result.score);
     if (!Number.isFinite(score) || score < min) continue;
     const hits = Number(s.result.hitStrings) || 0;
-    if (!best || score > best.score + 1e-9 || (Math.abs(score - best.score) <= 1e-9 && hits > best.hits)) {
-      best = { chord: s.chord, score, hits };
-    }
+    const fretted = frettedHits(s.chord, s.result);
+    /* Ties are common and they used to go to whichever chord the counter
+     * listed first, which is an answer with no evidence in it at all. An open
+     * string rings on almost anything played in first position, so what is
+     * left of a tied comparison is the FRETTED strings: between two shapes
+     * that scored the same, the one with more of its fretted strings
+     * confirmed is the one the hand was actually holding. `hitStrings` breaks
+     * what is still level after that. */
+    const better = !best
+      || score > best.score + 1e-9
+      || (Math.abs(score - best.score) <= 1e-9
+        && (fretted > best.fretted || (fretted === best.fretted && hits > best.hits)));
+    if (better) best = { chord: s.chord, score, hits, fretted };
   }
   return best;
+}
+
+/** How many of a shape's FRETTED strings the engine confirmed. `results[]` is
+ *  per string; a build that does not send it answers with the shape's ratio,
+ *  which is the same for every candidate and so breaks nothing. */
+export function frettedHits(chord, result) {
+  const shape = SHAPES[chord];
+  const rows = result && Array.isArray(result.results) ? result.results : null;
+  if (!shape || !rows) return 0;
+  let n = 0;
+  for (const r of rows) {
+    if (!r || !r.hit) continue;
+    const f = Number(r.f);
+    if (Number.isFinite(f) && f > 0) n++;
+  }
+  return n;
 }
 
 /**
@@ -293,6 +422,27 @@ export function createEngineAdapter(port, opts) {
   const schedule = o.schedule || ((fn, ms) => setTimeout(fn, ms));
   const unschedule = o.unschedule || ((h) => clearTimeout(h));
 
+  /* Which road this build gives us, decided once at `start`. The notes are
+   * preferred and the shape scorer is the fallback; `null` until asked. A
+   * build whose ML model failed to load answers `isMlNoteDetection()` false
+   * and still has `detectNotes`, but it is monophonic YIN then and naming a
+   * chord from one pitch is not naming a chord — so the question is asked. */
+  let notes = null;
+  async function road() {
+    if (notes !== null) return notes;
+    notes = false;
+    try {
+      if (typeof audio.detectNotes === 'function') {
+        notes = typeof audio.isMlNoteDetection !== 'function'
+          ? true
+          : (await audio.isMlNoteDetection()) === true;
+      }
+    } catch (_) { notes = false; }
+    if (!notes && typeof audio.scoreChord !== 'function') notes = true;   // nothing else to try
+    stats.road = notes ? 'notes' : 'shapes';
+    return notes;
+  }
+
   let running = false;
   let timer = null;
   let baseline = 0;
@@ -301,7 +451,7 @@ export function createEngineAdapter(port, opts) {
   let armed = true;
   let lastOnsetAt = -1e9;
   let scoring = false;
-  const stats = { onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0, ear: o.ear || 'medium' };
+  const stats = { onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0, ear: o.ear || 'medium', road: '?' };
   setEar(o.ear || 'medium');
   let lastNamed = null;               // { chord, at }: the shape the hand holds, and when it was last heard
 
@@ -310,41 +460,78 @@ export function createEngineAdapter(port, opts) {
     for (const e of out) port.emit('strum', Object.assign({ source: port.source, quality: 1 }, e));
   }
 
-  /** Scores every chord the counter is waiting for and reports the winner. */
-  async function hear() {
-    const wanted = port.candidates.slice();
-    if (!wanted.length) return;
-    /* The shape the hand holds stays in the line-up, however long ago it was
-     * named, when nobody wants it any more: see `MIN_CHANGE_MS` above. */
+  /**
+   * THE NOTES ROAD: what is ringing, named against everything the game knows.
+   *
+   * One call, and the answer is a chord and not a ranking of the chords the
+   * counter happens to want. That is the whole point: a C played while the
+   * counter wants Am and G comes back a C — which nobody wants, so nothing
+   * cooks — where the shape road had to hand back the better of two wrong
+   * answers.
+   */
+  async function byNotes() {
+    let d = null;
+    try { d = await audio.detectNotes(); } catch (_) { return null; }
+    if (!running || !d || !Array.isArray(d.notes)) return null;
+    const air = [];
+    for (const n of d.notes) {
+      if (!n || !Number.isFinite(n.midi)) continue;
+      const c = Number(n.confidence);
+      if (Number.isFinite(c) && c < ear.conf) continue;
+      air.push(Math.round(n.midi));
+    }
+    stats.air = air.slice().sort((a, b) => a - b);
+    const best = nameFrom(air, { floor: ear.fit });
+    return best ? { chord: best.chord, quality: best.fit } : null;
+  }
+
+  /**
+   * THE SHAPE ROAD: how much of each shape rang, and the best of them.
+   *
+   * The candidates, plus the shape the hand was last holding when nobody
+   * wants it any more — without that decoy the ring of a chord already cooked
+   * is scored against the counter's new wants and named as one of them.
+   */
+  async function byShapes(wanted) {
     const decoy = lastNamed && !wanted.includes(lastNamed.chord) ? lastNamed.chord : null;
     const chords = decoy ? wanted.concat([decoy]) : wanted;
-    await wait(SETTLE_MS);
-    if (!running) return;
-
     /* All of them at once. Each call scores the audio as it is when the engine
      * gets it, so scoring five in a row would judge five different instants of
      * the same ring; in parallel they land within a few milliseconds of each
      * other, on a chord that will go on ringing for hundreds. */
     const scored = await Promise.all(chords.map(async (chord) => {
-      const notes = engineNotes(chord);
-      if (!notes) return null;
+      const shape = engineNotes(chord);
+      if (!shape) return null;
       try {
-        return { chord, result: await audio.scoreChord(Object.assign({ notes }, scoreOpts)) };
+        return { chord, result: await audio.scoreChord(Object.assign({ notes: shape }, scoreOpts)) };
       } catch (_) {
         return null;                    // a hiccup on the bridge is not a miss
       }
     }));
+    if (!running) return null;
+    stats.scores = scored.filter(Boolean).map((x) => x.chord + ':' + (x.result ? Number(x.result.score).toFixed(2) : '-'));
+    const best = bestFit(scored, ear.floor);
+    return best ? { chord: best.chord, quality: best.score } : null;
+  }
+
+  /** Names what was just played, and decides whether the game hears it. */
+  async function hear() {
+    const wanted = port.candidates.slice();
+    if (!wanted.length) return;
+    await wait(SETTLE_MS);
     if (!running) return;
 
+    const best = (await road()) ? await byNotes() : await byShapes(wanted);
+    if (!running) return;
     const at = now();
-    const best = bestFit(scored, ear.floor);
-    stats.scores = scored.filter(Boolean).map((x) => x.chord + ':' + (x.result ? Number(x.result.score).toFixed(2) : '-'));
-    if (best && decoy && best.chord === decoy) {
-      // The shape the hand holds, strummed again or still ringing: nothing
-      // new was played. The hand was heard NOW, which is what the quarter of
-      // a second below is measured from.
+
+    if (best && lastNamed && best.chord === lastNamed.chord && !wanted.includes(best.chord)) {
+      /* THE HAND HOLDS ITS SHAPE. The chord it was holding, strummed again or
+       * still ringing, and no pot wants it any more: nothing new was played.
+       * The hand was heard NOW, which is what the quarter of a second below
+       * is measured from. */
       stats.ring++;
-      lastNamed = { chord: decoy, at };
+      lastNamed = { chord: best.chord, at };
       return;
     }
     if (best && lastNamed && best.chord !== lastNamed.chord && at - lastNamed.at < MIN_CHANGE_MS) {
@@ -353,15 +540,24 @@ export function createEngineAdapter(port, opts) {
       stats.quick++;
       return;
     }
+    if (best && !wanted.includes(best.chord)) {
+      /* A chord this game knows and nobody ordered. On the notes road this is
+       * a real answer — the player played a D and no ticket wants one — and
+       * it is still not charged as a miss: see below. The hand is holding it
+       * now, which is what stops its next strum being read as a change. */
+      stats.unknown++;
+      lastNamed = { chord: best.chord, at };
+      return;
+    }
     if (best) {
       stats.named++;
       lastNamed = { chord: best.chord, at };
-      send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.score)), at, heardAt: at });
+      send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.quality)), at, heardAt: at });
       return;
     }
 
-    /* Nothing on the counter fitted, and this is DROPPED rather than reported
-     * as a strum of no chord.
+    /* Nothing was named, and this is DROPPED rather than reported as a strum
+     * of no chord.
      *
      * The port's `chord: null` means "something was heard that is not a chord
      * of this game", and the engine files a miss for it — three of those in a
