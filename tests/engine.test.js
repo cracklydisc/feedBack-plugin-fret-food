@@ -14,7 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, RULES, handCost, scoreOf } from '../src/engine.js';
-import { MENU, LEVELS, dist, price, changes, chordLevel } from '../src/menu.js';
+import { MENU, LEVELS, dist, price, changes, chordLevel, label } from '../src/menu.js';
 import { cook, dish, dishDuration } from '../src/input/scripted.js';
 import { STEP_MS } from '../src/clock.js';
 import { createFlaws } from '../src/input/flaws.js';
@@ -760,7 +760,8 @@ test('the drills are two or three shapes in a random order, named for their chan
     assert.ok(changes(d) >= 1, d.dish + ' has no change to drill');
     const shapes = [...new Set(d.steps)];
     assert.ok(shapes.length >= 2 && shapes.length <= 3, d.dish + ' should be two or three shapes: ' + d.steps.join(' '));
-    for (const c of shapes) assert.ok(d.dish.includes(c), d.dish + ' does not name ' + c);
+    // Named by LABEL: the whole F is written F, in a dish's name as on its card.
+    for (const c of shapes) assert.ok(d.dish.includes(label(c)), d.dish + ' does not name ' + label(c));
     assert.equal(d.price, price(d.steps));
     assert.equal(d.ingredients.length, d.steps.length);
   }

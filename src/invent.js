@@ -42,7 +42,7 @@
  * that bends is not a gate.
  */
 
-import { CHORDS, chordLevel, isBarre, price, changes } from './menu.js';
+import { CHORDS, chordLevel, isBarre, price, changes, label } from './menu.js';
 
 /*
  * The keys, as degrees. Only the chords this game has shapes for: F major's ii
@@ -54,10 +54,15 @@ import { CHORDS, chordLevel, isBarre, price, changes } from './menu.js';
  * different lesson from the diatonic keys above them.
  */
 const KEYS = [
-  { root: 'C', deg: { I: 'C', ii: 'Dm', iii: 'Em', IV: 'F', V: 'G', vi: 'Am', V7: 'G7' } },
-  { root: 'G', deg: { I: 'G', ii: 'Am', iii: 'Bm', IV: 'C', V: 'D', vi: 'Em', V7: 'D7' } },
-  { root: 'D', deg: { I: 'D', ii: 'Em', iii: 'F#m', IV: 'G', V: 'A', vi: 'Bm', V7: 'A7' } },
-  { root: 'A', deg: { I: 'A', ii: 'Bm', iii: 'C#m', IV: 'D', V: 'E', vi: 'F#m', V7: 'E7' } },
+  /* The sus, the add9 and the bass step are degrees too (`Isus4`, `Iadd9`,
+   * `V/3`), owned only by the keys whose shapes exist, so a dish written on
+   * them is voiced where it can be and stays put where it cannot. */
+  { root: 'C', deg: { I: 'C', ii: 'Dm', iii: 'Em', IV: 'F', V: 'G', vi: 'Am', V7: 'G7', Iadd9: 'Cadd9', Vsus4: 'Gsus4', 'V/3': 'G/B' } },
+  { root: 'G', deg: { I: 'G', ii: 'Am', iii: 'Bm', IV: 'C', V: 'D', vi: 'Em', V7: 'D7', Isus4: 'Gsus4', IVadd9: 'Cadd9', Vsus4: 'Dsus4' } },
+  { root: 'D', deg: { I: 'D', ii: 'Em', iii: 'F#m', IV: 'G', V: 'A', vi: 'Bm', V7: 'A7', Isus4: 'Dsus4', Vsus2: 'Asus2', Vsus4: 'Asus4', IVsus4: 'Gsus4' } },
+  { root: 'A', deg: { I: 'A', ii: 'Bm', iii: 'C#m', IV: 'D', V: 'E', vi: 'F#m', V7: 'E7', Isus2: 'Asus2', Isus4: 'Asus4', IVsus4: 'Dsus4' } },
+  // E, once B and G#m exist: the last open key the neck could not finish.
+  { root: 'E', deg: { I: 'E', ii: 'F#m', iii: 'G#m', IV: 'A', V: 'B', vi: 'C#m', V7: 'B7', IVsus2: 'Asus2', IVsus4: 'Asus4' } },
   { root: 'F', deg: { I: 'F', iii: 'Am', IV: 'Bb', V: 'C', vi: 'Dm' } },
   { root: 'Bb', deg: { I: 'Bb', IV: 'Eb', V: 'F' } },
   { root: 'A7', blues: true, deg: { I7: 'A7', IV7: 'D7', V7: 'E7' } },
@@ -343,7 +348,8 @@ function drill(level, rand, used) {
   const from = Math.floor(rand() * family.pool.length);
   const noun = family.nouns.find((x) => !used.has(x)) || pick(family.nouns, rand);
   used.add(noun);
-  const word = chords.length === 2 ? chords[0] + '-to-' + chords[1] : chords.join('-');
+  const names = chords.map(label);
+  const word = names.length === 2 ? names[0] + '-to-' + names[1] : names.join('-');
   return {
     id: 'drl-' + level + '-' + chords.join('').replace(/#/g, 's') + '-' + family.id,
     dish: word + ' ' + noun,

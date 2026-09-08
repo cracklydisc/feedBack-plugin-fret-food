@@ -44,11 +44,24 @@ export const SHAPES = {
   Dm: { level: 1, frets: [-1, -1, 0, 2, 3, 1], fingers: [0, 0, 0, 2, 3, 1] },
   Em: { level: 1, frets: [0, 2, 2, 0, 0, 0], fingers: [0, 2, 3, 0, 0, 0] },
   D:  { level: 1, frets: [-1, -1, 0, 2, 3, 2], fingers: [0, 0, 0, 1, 3, 2] },
+  /* D with one finger more: the smallest change there is, and a drill of
+   * changes wants the small ones as much as C to F. */
+  Dsus4: { level: 1, frets: [-1, -1, 0, 2, 3, 3], fingers: [0, 0, 0, 1, 3, 4] },
 
   /* ── the second tier: the last two open shapes, and the first that hurts ── */
   A:  { level: 2, frets: [-1, 0, 2, 2, 2, 0], fingers: [0, 0, 1, 2, 3, 0] },
   E:  { level: 2, frets: [0, 2, 2, 1, 0, 0], fingers: [0, 2, 3, 1, 0, 0] },
   F:  { level: 2, frets: [-1, -1, 3, 2, 1, 1], fingers: [0, 0, 3, 2, 1, 1] },
+  /* The small movements between the shapes a hand already knows. Cadd9
+   * shares three fingers with G; the two sus on A lift or add one finger;
+   * Gsus4 is G with the index on the B string; G/B is the step a bass takes
+   * from G down to C. None of them is a new place for the hand, all of them
+   * are a change, and a game about changes had none of them. */
+  Cadd9: { level: 2, frets: [-1, 3, 2, 0, 3, 3], fingers: [0, 2, 1, 0, 3, 4] },
+  Gsus4: { level: 2, frets: [3, 2, 0, 0, 1, 3], fingers: [3, 2, 0, 0, 1, 4] },
+  Asus2: { level: 2, frets: [-1, 0, 2, 2, 0, 0], fingers: [0, 0, 1, 2, 0, 0] },
+  Asus4: { level: 2, frets: [-1, 0, 2, 2, 3, 0], fingers: [0, 0, 1, 2, 3, 0] },
+  'G/B': { level: 2, frets: [-1, 2, 0, 0, 0, 3], fingers: [0, 1, 0, 0, 0, 3] },
 
   /* ── the sevenths ────────────────────────────────────────────────────── */
   A7: { level: 3, frets: [-1, 0, 2, 0, 2, 0], fingers: [0, 0, 2, 0, 3, 0] },
@@ -59,14 +72,25 @@ export const SHAPES = {
   /* ── four fingers, and the first real barre ─────────────────────────── */
   B7: { level: 4, frets: [-1, 2, 1, 2, 0, 2], fingers: [0, 2, 1, 3, 0, 4] },
   Bb: { level: 4, frets: [-1, 1, 3, 3, 3, 1], fingers: [0, 1, 2, 3, 4, 1] },
+  /* The whole F, six strings under a barre at the first fret: the chord the
+   * small F above stands in for until the hand can hold it. Same chord, same
+   * name on the card — `show` is what the card prints — and the fingering is
+   * what tells them apart, which is the one thing a fingering is for. The key
+   * carries a plus because two shapes cannot share one key, and the key is
+   * never printed. */
+  'F+': { level: 4, show: 'F', frets: [1, 3, 3, 2, 1, 1], fingers: [1, 3, 4, 2, 1, 1] },
 
   /* ── barres, held across the neck ───────────────────────────────────── */
   Bm:   { level: 5, frets: [-1, 2, 4, 4, 3, 2], fingers: [0, 1, 3, 4, 2, 1] },
   'F#m': { level: 5, frets: [2, 4, 4, 2, 2, 2], fingers: [1, 3, 4, 1, 1, 1] },
+  // Bb moved up a fret: the V of E and the II of A, which the neck was missing.
+  B:    { level: 5, frets: [-1, 2, 4, 4, 4, 2], fingers: [0, 1, 2, 3, 4, 1] },
 
   /* ── the same barres, moved up the neck ─────────────────────────────── */
   'C#m': { level: 6, frets: [-1, 4, 6, 6, 5, 4], fingers: [0, 1, 3, 4, 2, 1] },
   Eb:   { level: 6, frets: [-1, 6, 8, 8, 8, 6], fingers: [0, 1, 2, 3, 4, 1] },
+  // F#m moved up two: the iii of E, so a progression in E can be finished.
+  'G#m': { level: 6, frets: [4, 6, 6, 4, 4, 4], fingers: [1, 3, 4, 1, 1, 1] },
 };
 
 /**
@@ -84,6 +108,12 @@ export const SHAPES = {
  * level. That is what keeps the curve a curve instead of a comment.
  */
 export const chordLevel = (name) => (SHAPES[name] ? SHAPES[name].level || 1 : 1);
+
+/** What a shape is CALLED where a player reads it. The key is the shape's
+ *  identity — two fingerings of one chord need two keys — and the name is
+ *  the chord: `F+` is written F. Everything that prints a chord goes through
+ *  here; everything that looks a shape up does not. */
+export const label = (name) => (SHAPES[name] && SHAPES[name].show) || String(name);
 
 /** Whether a shape is a BARRE: one finger laid across two strings or more.
  *
@@ -277,6 +307,29 @@ const DISHES = [
   { id: 'tortellini', dish: 'Turnaround Tortellini', steps: ['C', 'Am', 'Dm', 'G'],
     rn: 'I vi ii V',           level: 2, pan: 'stockpot',
     ingredients: ['water', 'pasta', 'cream', 'pepper'] },
+  /* The small movements, as dishes, so they are met on purpose and not only
+   * when a drill happens to draw them. A sus is the same shape with one
+   * finger lifted or added; the walking bass is G stepping down to C. Their
+   * numerals name the movement (`Isus4`, `V/3`) and only the keys that own
+   * those shapes can voice them, so they stay where they are written. */
+  { id: 'sustoast',   dish: 'Suspended Toast',       steps: ['D', 'Dsus4', 'D', 'Dsus4'],
+    rn: 'I Isus4 I Isus4',     level: 1, pan: 'skillet',
+    ingredients: ['bread', 'ricotta', 'sugar', 'peel'] },
+  { id: 'addnine',    dish: 'Add-Nine Bruschetta',   steps: ['G', 'Cadd9', 'G', 'Cadd9'],
+    rn: 'V Iadd9 V Iadd9',     level: 2, pan: 'skillet',
+    ingredients: ['bread', 'oil', 'tomato', 'parsley'] },
+  { id: 'skewers',    dish: 'Suspended Skewers',     steps: ['A', 'Asus2', 'A', 'Asus4', 'A'],
+    rn: 'I Isus2 I Isus4 I',   level: 2, pan: 'roasting',
+    ingredients: ['chicken', 'pepper', 'onion', 'oil', 'rosemary'] },
+  { id: 'walking',    dish: 'Walking-Bass Focaccia', steps: ['G', 'G/B', 'C', 'G'],
+    rn: 'V V/3 I V',           level: 2, pan: 'pizza',
+    ingredients: ['dough', 'oil', 'salt', 'rosemary'] },
+  /* The whole F, at the tier of the first barre. `I+` is a degree no key
+   * table has, on purpose: voiced into another key this dish would lose the
+   * one thing it is for. */
+  { id: 'bistecca',   dish: 'Full-Barre Bistecca',   steps: ['F+', 'Bb', 'C', 'F+'],
+    rn: 'I+ IV V I+',          level: 4, pan: 'skillet',
+    ingredients: ['butter', 'pepper', 'salt', 'rosemary'] },
   { id: 'margherita', dish: 'Three-Chord Margherita', steps: ['C', 'F', 'G'],
     rn: 'I IV V',              level: 2, pan: 'pizza',
     ingredients: ['dough', 'tomato', 'mozzarella'] },

@@ -50,6 +50,13 @@ export const KEYS = {
   1: 'A7', 2: 'D7', 3: 'E7', 4: 'G7',
   // The flats have no letter of their own, so they take the two spare digits.
   5: 'Bb', 6: 'Eb',
+  /* The sus and the add9 take the last three digits — nine for the add9, which
+   * is the one mnemonic there is — and the two sus on A the two keys above A.
+   * `r` is the whole F, a barre; `y` and `u` are the two barres that finish
+   * the key of E. The card prints the key beside the chord, so none of this
+   * has to be remembered. */
+  7: 'Gsus4', 8: 'Dsus4', 9: 'Cadd9',
+  q: 'Asus2', w: 'Asus4', r: 'F+', y: 'B', u: 'G#m',
 };
 
 /* Held down, the letter gives the OTHER chord of that name: the major where
@@ -60,7 +67,7 @@ export const KEYS = {
  * Every shape in `SHAPES` has to be reachable from the keyboard — that is how
  * the game is tested without a guitar plugged in — and `tests/input.test.js`
  * falls over if a chord is added and given no key. */
-export const SHIFT_KEYS = { d: 'D', e: 'E', a: 'A', b: 'Bm', f: 'F#m', c: 'C#m' };
+export const SHIFT_KEYS = { d: 'D', e: 'E', a: 'A', b: 'Bm', f: 'F#m', c: 'C#m', g: 'G/B' };
 
 /**
  * Which key plays a chord, printable.

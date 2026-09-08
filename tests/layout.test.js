@@ -675,3 +675,20 @@ test('the card says when a chord is wanted at another pot too', async () => {
     assert.equal(r.n, 5, 'the five inked characters of "2 POTS": ' + r.n);
   }
 });
+
+test('a long chord name stays in its column, big or small', async () => {
+  /* The left column of a card is thirty-six pixels and was cut for three
+   * glyphs. `Cadd9` and `Asus4` are five: written big they would run under
+   * the diagram, so the root is written big and the rest small, and in a
+   * chip too narrow for the name the root stands for it. Six steps of
+   * five-glyph names is the worst recipe the menu can now deal. */
+  const steps = ['Cadd9', 'Gsus4', 'Asus4', 'Asus2', 'Dsus4', 'Cadd9'];
+  const snap = worstSnapshot({
+    wants: ['Cadd9'],
+    stations: Array.from({ length: GEO.SLOTS }, (_, i) => worstStation(i, { steps, wants: 'Cadd9', step: 2 })),
+  });
+  const { runs } = await drawn(snap);
+  inScreen(runs);
+  inCards(onPlate(runs));
+  noPileUp(onPlate(runs));
+});

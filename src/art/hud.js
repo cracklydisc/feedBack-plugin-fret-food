@@ -23,6 +23,7 @@
 
 import { measure, money, clock as fmtClock, wrapPx } from './font.js';
 import { P } from './pix.js';
+import { label } from '../menu.js';
 
 const PAD = 5;            // from the edge of the plate to the first thing on it
 const GAP = 3;            // between two things on the same row
@@ -262,7 +263,7 @@ export function coachText(snap, o) {
   if (s.started === false) {
     const want = (s.wants && s.wants[0])
       || ((s.stations || []).map((st) => st && st.wants).find(Boolean));
-    return want ? 'PLAY ' + want + ' TO OPEN THE KITCHEN' : 'PLAY A CHORD TO OPEN THE KITCHEN';
+    return want ? 'PLAY ' + label(want) + ' TO OPEN THE KITCHEN' : 'PLAY A CHORD TO OPEN THE KITCHEN';
   }
   if (s.silent) return 'SILENCE - THE POTS COOL TWICE AS FAST';
   // A customer is lost, and there is a way back: say how far it is.
@@ -359,7 +360,7 @@ export function bubbleLayout(st, slot, geo, lines, font) {
   const cx = slot * geo.SLOT_W + geo.SLOT_W / 2;
   const starsW = itemWidth({ stars: 5 });
   const tw = Math.max(
-    measure(st.name || '', 'S') + starsW + GAP,
+    measure(String(st.name || '').toUpperCase(), 'S') + starsW + GAP,
     ...lines.map((l) => measure(l, f)),
   );
   const w = Math.min(geo.SLOT_W - 4, tw + AIR * 2);
@@ -369,7 +370,9 @@ export function bubbleLayout(st, slot, geo, lines, font) {
   const y = geo.BUBBLE_Y;
   return {
     x, y, w, h, cx, font: f,
-    name: { s: st.name || '', x: x + AIR, y: y + AIR, w: measure(st.name || '', 'S'), h: NAME_H },
+    // Uppercased here and not left to the font: the small font has lowercase
+    // letters now, for chord names, and `Maria` is not `MaRIa`.
+    name: { s: String(st.name || '').toUpperCase(), x: x + AIR, y: y + AIR, w: measure(String(st.name || '').toUpperCase(), 'S'), h: NAME_H },
     stars: { n: st.stars, x: x + w - AIR - starsW, y: y + AIR, w: starsW, h: NAME_H },
     lines: lines.map((l, k) => ({
       s: l, x: x + AIR, y: y + AIR + NAME_H + 2 + k * LINE_H, w: measure(l, f), h: TEXT_H,

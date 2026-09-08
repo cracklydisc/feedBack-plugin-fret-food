@@ -103,6 +103,18 @@ shapes of that tier in a random order, named for their changes (E-to-A
 Frittata, D-G-D Skewers), because this is a drill of changes and a change does
 not need a harmony to be worth practising.
 
+**Nine more shapes for the changes themselves.** Cadd9, Gsus4, Dsus4, Asus2,
+Asus4 and G/B are the small movements a hand practises between the chords it
+already knows — Cadd9 shares three fingers with G, Dsus4 is D with one finger
+more, G/B is the bass stepping from G down to C — and they sit in the first
+two tiers beside the shapes they belong to. B and G#m finish the keys of E and
+A up the neck. And F has two fingerings: the small one at the second tier and
+the whole barre at the fourth, written F on the card like the other and told
+apart by its diagram, which is what a diagram is for. Five dishes are written
+on them — Suspended Toast, Add-Nine Bruschetta, Suspended Skewers,
+Walking-Bass Focaccia, Full-Barre Bistecca — and the drills draw them like
+any other shape of their tier.
+
 Every recipe has its own pan and its own ingredients, and there is one
 ingredient per step. Cook a step and the next one goes in, so the pan fills as
 the progression advances: a stockpot of minestrone and a pizza stone read as
@@ -349,7 +361,9 @@ to the hub whatever it took, its summary says so, and neither is offered
 anywhere a player looks — the address is the only way to them.
 
 - **Keyboard.** `?fretfood_input=keys`. `c d e f g a b` are C, Dm, Em, F, G, Am,
-  B7; `1 2 3 4` are A7, D7, E7, G7 and `5 6` are Bb and Eb; hold Shift for the
+  B7; `1 2 3 4` are A7, D7, E7, G7 and `5 6` are Bb and Eb; `7 8 9` are Gsus4,
+  Dsus4 and Cadd9, `q w` Asus2 and Asus4, `r` the whole F, `y` B, `u` G#m and
+  Shift-G is G/B; hold Shift for the
   other chord of that letter — `A E D` for the majors, `B F C` for Bm, F#m and
   C#m. Ctrl makes a strum dirty, `x` is a strum nobody wants, `0` switches a
   realistic detector's flaws on and off.

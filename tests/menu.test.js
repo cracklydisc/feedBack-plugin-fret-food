@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SHAPES, CHORDS, MENU, LEVELS, COOKWARE, INGREDIENTS, dist, price, diagram, pressed, chordsUpTo, chordLevel, changes, isBarre,
+  SHAPES, CHORDS, MENU, LEVELS, COOKWARE, INGREDIENTS, dist, price, diagram, pressed, chordsUpTo, chordLevel, changes, isBarre, label,
 } from '../src/menu.js';
 import { inventMenu } from '../src/invent.js';
 
@@ -22,10 +22,26 @@ const BOOK = {
   G: '320003', G7: '320001', Am: 'x02210', E: '022100',
   E7: '020100', A7: 'x02020', D: 'xx0232', D7: 'xx0212', B7: 'x21202',
   A: 'x02220',
+  // The small movements: a finger lifted or added, and the bass stepping down.
+  Dsus4: 'xx0233', Cadd9: 'x32033', Gsus4: '320013', Asus2: 'x02200', Asus4: 'x02230', 'G/B': 'x20003',
   // The barres, and the same two shapes moved up the neck.
   Bb: 'x13331', Bm: 'x24432', 'F#m': '244222',
   'C#m': 'x46654', Eb: 'x68886',
+  // The whole F, and the two that finish the key of E.
+  'F+': '133211', B: 'x24442', 'G#m': '466444',
 };
+
+test('the whole F is written F, and only the fingering tells it from the small one', () => {
+  assert.equal(label('F+'), 'F');
+  assert.equal(label('F'), 'F');
+  assert.equal(label('Cadd9'), 'Cadd9', 'a shape with no display name is called by its key');
+  assert.equal(label('nonsense'), 'nonsense');
+  assert.notEqual(diagram('F+').text, diagram('F').text);
+  assert.ok(isBarre('F+'), 'the whole F is a barre');
+  assert.equal(diagram('F+').strings.filter((s) => !s.muted).length, 6, 'across all six strings');
+  assert.equal(diagram('F').strings.filter((s) => !s.muted).length, 4, 'where the small one sounds four');
+  assert.ok(chordLevel('F+') > chordLevel('F'), 'and it comes later');
+});
 
 test('every shape matches the chord book', () => {
   for (const name of CHORDS) {

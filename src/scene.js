@@ -65,7 +65,7 @@ import { GEO, slotX, slotCX } from './art/geo.js';
 import { loadAtlas } from './art/atlas.js';
 import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText } from './art/hud.js';
 import { chordSvg } from './art/chordsvg.js';
-import { diagram, LEVELS } from './menu.js';
+import { diagram, LEVELS, label } from './menu.js';
 import { keyFor } from './input/keys.js';
 
 /*
@@ -1181,7 +1181,12 @@ export function createScene(container) {
         done ? P.greenLo : cur ? P.amber : P.plateHi);
       // Not uppercased: `Am` is a chord and `AM` is a different one, and the
       // small font grew a lowercase m so that this line could stop shouting.
-      text(g, st.steps[k], cxp + chipW / 2, cy + 2, {
+      // A name wider than its chip — `Cadd9` in a chip cut for `Am` — keeps
+      // its root and drops the rest: the chip is progress, the card below is
+      // the instruction, and a root in the right place beats a smear.
+      const step = label(st.steps[k]);
+      const shown = measure(step, 'S') <= chipW ? step : (/^[A-G][#b]?/.exec(step) || [step])[0];
+      text(g, shown, cxp + chipW / 2, cy + 2, {
         font: 'S', color: done ? P.greenHi : cur ? P.ink : P.grey, align: 'center',
       });
       cxp += chipW + 1;
@@ -1192,7 +1197,7 @@ export function createScene(container) {
      * which of them your last chord actually fed. */
     const wantsColor = hit === 'hit' ? P.white : hit === 'dirty' ? P.smoke : P.amber;
     const punch = !still && fl && t - fl.t0 < 120 ? 1 : 0;
-    text(g, st.wants || '', x + 4, y + 13 - punch, { font: 'M', scale: 2, color: wantsColor });
+    drawChordName(st.wants || '', x + 4, y + 13 - punch, wantsColor);
 
     // How many pans want this same chord: the greedy play, and the row below
     // says it in words.
@@ -1359,6 +1364,23 @@ export function createScene(container) {
   }
 
   /* ── effects ───────────────────────────────────────────────────────────── */
+  /**
+   * The chord owed, in the card's left column. The column is thirty-six
+   * pixels and was cut for three glyphs: `F#m` at the M font doubled is
+   * thirty-four. `Cadd9` and `Asus4` are five, and doubled they run under
+   * the diagram. So a name wider than the column is written the way a chord
+   * book writes it — the root big, the rest small at its shoulder — and the
+   * name is the shape's LABEL, so the two Fs both say F and the fingering
+   * tells them apart, which is what a fingering is for.
+   */
+  function drawChordName(name, x, y, color) {
+    const s = label(name);
+    if (measure(s, 'M', 2) <= 36) { text(g, s, x, y, { font: 'M', scale: 2, color }); return; }
+    const m = /^([A-G][#b]?)(.*)$/.exec(s) || [s, s, ''];
+    const w = text(g, m[1], x, y, { font: 'M', scale: 2, color });
+    text(g, m[2], x + w + 1, y, { font: 'M', color });
+  }
+
   function drawFx(t) {
     // Notes in flight, from the guitar to the pans it heated.
     notes = notes.filter((n) => {

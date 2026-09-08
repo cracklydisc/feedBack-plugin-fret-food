@@ -14,7 +14,7 @@
  * the shapes climb the neck.
  */
 
-import { CHORDS, diagram, chordLevel } from '../src/menu.js';
+import { CHORDS, diagram, chordLevel, label } from '../src/menu.js';
 import { chordSvg } from '../src/art/chordsvg.js';
 import { P } from '../src/art/pix.js';
 
@@ -56,7 +56,9 @@ for (const lv of levels) {
     const row = Math.floor(k / COLS);
     const box = { x: GAP + col * (CELL.w + GAP), y: y + row * rowH + LABEL, w: CELL.w, h: CELL.h };
     const d = diagram(name);
-    out.push(`<text x="${box.x + CELL.w / 2}" y="${box.y - 3}" text-anchor="middle" ${font} font-size="8" font-weight="700" fill="${P.white}">${name.replace(/&/g, '&amp;')}</text>`);
+    out.push(`<text x="${box.x + CELL.w / 2}" y="${box.y - 3}" text-anchor="middle" ${font} font-size="8" font-weight="700" fill="${P.white}">${label(name).replace(/&/g, '&amp;')}</text>`);
+    // The frets, the way a chord book writes them: it is what tells the two Fs apart.
+    out.push(`<text x="${box.x + CELL.w / 2}" y="${box.y + CELL.h + 6}" text-anchor="middle" ${font} font-size="5" fill="${P.grey}">${d.text}</text>`);
     out.push(chordSvg(d, box));
     out.push(`<text x="${box.x + CELL.w / 2}" y="${box.y + CELL.h + 7}" text-anchor="middle" ${font} font-size="5.5" fill="${P.grey}">${d.text}</text>`);
   });

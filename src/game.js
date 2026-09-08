@@ -48,7 +48,7 @@ import * as kit from './kit/index.js';
 import { createGame, RULES, PACES, scoreOf } from './engine.js';
 import { createOptions, menuLayout, menuHit, loadChoices, saveChoices } from './options.js';
 import { GEO } from './art/geo.js';
-import { MENU, LEVELS, chordsUpTo } from './menu.js';
+import { MENU, LEVELS, chordsUpTo, label } from './menu.js';
 import { inventMenu } from './invent.js';
 import { createClock } from './clock.js';
 import { createPort } from './input/port.js';
@@ -359,7 +359,7 @@ async function start({ container, modifiers, sdk }) {
     } else if (mode === 'practice') {
       scene.say(['PRACTICE', 'NO STRIKES - THE TIME OF EVERY CHANGE IS WRITTEN OVER ITS CARD', 'NOTHING IS SCORED'], 5000);
     } else if (mode === 'loop') {
-      scene.say(['ONE DISH, ON A LOOP', slow ? 'WORKING ON ' + slow.from + '-' + slow.to + ', YOUR SLOWEST CHANGE LAST TIME' : 'THE SAME RECIPE EVERY TIME, ON ONE POT', 'NO STRIKES, NOTHING SCORED'], 5000);
+      scene.say(['ONE DISH, ON A LOOP', slow ? 'WORKING ON ' + label(slow.from) + '-' + label(slow.to) + ', YOUR SLOWEST CHANGE LAST TIME' : 'THE SAME RECIPE EVERY TIME, ON ONE POT', 'NO STRIKES, NOTHING SCORED'], 5000);
     } else if (mode === 'sprint') {
       scene.say(['SPRINT', 'THREE MINUTES FROM THE FIRST CHORD', 'THE TAKINGS ARE THE SCORE'], 5000);
     }
@@ -466,7 +466,7 @@ async function start({ container, modifiers, sdk }) {
       const slow = r.slowest && r.slowest[0];
       scene.setClosing({
         seed: wanted.seed,
-        note: slow ? 'SLOWEST CHANGE ' + slow.from + '-' + slow.to + ' ' + (slow.ms / 1000).toFixed(1) + 'S' : null,
+        note: slow ? 'SLOWEST CHANGE ' + label(slow.from) + '-' + label(slow.to) + ' ' + (slow.ms / 1000).toFixed(1) + 'S' : null,
       });
     } catch (_) { /* the card can do without the line */ }
     overTimer = setTimeout(() => finish('over'), OVER_HOLD_MS);
@@ -563,6 +563,7 @@ async function start({ container, modifiers, sdk }) {
     const lines = ['KEYBOARD ON - FOR DEVELOPMENT - NOTHING IS SCORED'];
     lines.push('C D E F G A B PLAY THE CHORDS - SHIFT FOR THE OTHER ONE');
     lines.push('1 TO 6 PLAY THE 7THS AND THE FLATS - P PAUSES - M MUTES');
+    lines.push('7 8 9 Q W R Y U AND SHIFT-G PLAY THE OTHER SHAPES - THE CARD SAYS WHICH');
     let shared = [];
     try { shared = ['c', 'd', 'e', 'f', 'g', 'a', 'b', 'p'].filter((k) => isTaken(k)); } catch (_) {}
     if (shared.length) lines.push('KEY ' + shared.join(' ').toUpperCase() + ' IS ALSO USED BY THE APP');
@@ -726,7 +727,7 @@ function summary(r, snap, extra) {
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const money = (n) => '$' + String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const pct = (x) => (x === null || x === undefined ? '-' : Math.round(x * 100) + '%');
-  const slow = (r.slowest || []).map((c) => c.from + '→' + c.to + ' ' + (c.ms / 1000).toFixed(1) + ' s').join(' · ');
+  const slow = (r.slowest || []).map((c) => label(c.from) + '→' + label(c.to) + ' ' + (c.ms / 1000).toFixed(1) + ' s').join(' · ');
   const pace = String(extra.pace || 'normal');
   const mode = String(extra.mode || 'service');
   const mult = extra.mult === undefined ? 1 : extra.mult;

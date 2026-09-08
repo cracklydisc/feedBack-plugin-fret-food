@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Nine shapes for the changes themselves, and a second F.** Cadd9, Gsus4,
+  Dsus4, Asus2, Asus4 and G/B — the small movements a hand practises between
+  the chords it knows, and the bass step from G to C — join the first two
+  tiers beside the shapes they belong to; B and G#m finish the keys of E and A
+  up the neck, and the inventor can voice a dish in E now. F has two
+  fingerings: the small one stays at the second tier and the whole barre
+  (`133211`) arrives at the fourth, written F on the card like the other and
+  told apart by its diagram (`SHAPES[key].show`, `label()`: two fingerings
+  need two keys, and a key is never printed). Five dishes are written on the
+  new shapes, with numerals (`Isus4`, `Iadd9`, `V/3`, `I+`) only the keys
+  that own them can voice. The keyboard reaches them on `7 8 9`, `q w r y u`
+  and Shift-G, and the card says which.
+  - A five-glyph name did not fit a card cut for three: the root is written
+    big and the rest small at its shoulder, the way a chord book writes it,
+    and a chip too narrow for the name keeps its root. Both fonts grew the
+    lowercase `a d s u`, so `Cadd9` is not `CADD9`; the customers' names,
+    which the small font used to uppercase by accident, are uppercased on
+    purpose now. `docs/chords.svg` prints the frets under every shape.
+
 ## [0.1.0] - 2026-09-08
 
 First release. Fret Food is a chain and not a single trattoria, so the

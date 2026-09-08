@@ -74,6 +74,13 @@ const M = {
   // somebody looked at a card and asked what the question mark was for.
   '^': ['..#..', '.#.#.', '#...#', '.....', '.....', '.....', '.....'],
   m: ['.....', '.....', '##.#.', '#.#.#', '#.#.#', '#.#.#', '#.#.#'],
+  /* And the four letters chord names spell `add` and `sus` with. Lowercase in
+   * both fonts, like `m`, because `Cadd9` is a chord and `CADD9` is shouting:
+   * everything else the small font prints is uppercased at the call site. */
+  a: ['.....', '.....', '.###.', '....#', '.####', '#...#', '.####'],
+  d: ['....#', '....#', '.####', '#...#', '#...#', '#...#', '.####'],
+  s: ['.....', '.....', '.####', '#....', '.###.', '....#', '####.'],
+  u: ['.....', '.....', '#...#', '#...#', '#...#', '#...#', '.####'],
   /* A lowercase b, for the flats: `Bb` printed `BB` is a different chord, the
    * same way `AM` is. */
   b: ['#....', '#....', '#....', '####.', '#...#', '#...#', '####.'],
@@ -140,6 +147,10 @@ const S = {
   '/': ['..#', '..#', '.#.', '#..', '#..'],
   x: ['...', '#.#', '.#.', '#.#', '...'],
   m: ['...', '...', '###', '#.#', '#.#'],
+  a: ['...', '.##', '..#', '###', '###'],
+  d: ['..#', '..#', '.##', '#.#', '.##'],
+  s: ['...', '.##', '#..', '.#.', '##.'],
+  u: ['...', '...', '#.#', '#.#', '.##'],
   /* A lowercase b and a sharp: the recipe chips print chord names, and
    * `F#m` and `Bb` are chords this game now asks for. Three pixels can draw
    * both, and a sharp has to fill its cell to read as one at all. */
