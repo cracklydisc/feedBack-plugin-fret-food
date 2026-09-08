@@ -43,7 +43,15 @@ function body(req) {
   });
 }
 
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
+/* A PNG body is `Content-Type: image/png`, which is not one of the three
+ * content types a browser sends without asking first, so the hub's page
+ * preflights the POST and the answer has to allow the header by name or the
+ * fetch fails before a byte is sent. */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
 async function shot(req, res, url) {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
