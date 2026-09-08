@@ -62,6 +62,37 @@ All notable changes to this project are documented here. The format follows
   a customer who has just sat down is being read, not ignored. The card and the
   customer agree: it says 16.2 and they leave at 16.0. The strip's line drops
   the arithmetic it no longer does.
+- **The C, which a session reported as simply not heard.** Not confused with
+  another chord: played against a ticket that wanted it, over and over, while
+  the rest of the vocabulary was fine. What is different about C is the string
+  that is NOT in it — `x32010` mutes the low E, a beginner's thumb damps it
+  about as often as not, and a strummed low E is the loudest string there is.
+  Precision counted it as a note the shape does not explain, so a clean C came
+  back 0.87 and a C with one more thing wrong 0.76, which against a strict ear
+  is the difference between cooking and nothing happening. The open sound of a
+  string a shape asks you to MUTE is now forgiven — it is that shape's own
+  known imperfection. Five shapes are built that way and C is the one a player
+  meets first.
+- **When the pitches cannot separate two shapes, the counter says which.**
+  Measuring every shape with a string missing turned up twenty-one ties and
+  every single one is the chord's THIRD: Am without its C4 is the pitches of
+  an A, Em without its G3 an E, Dm without its F4 a D. None turns on the bass.
+  They were being decided by the order the shapes happen to be written in,
+  which always picked the same side — every open minor is declared before its
+  major, so a hand playing A with a missing third was told it had played Am,
+  for ever. Shapes within `TIE_BAND` of the leader are now offered to the
+  counter, and only those: 143 of 144 degraded shapes come back right when the
+  counter wants them, and all 756 whole shapes still name themselves when it
+  wants something else. A weighting by pitch rarity was tried for the same
+  problem and dropped — it fixed twenty of the ties and invented a worse one,
+  calling an Am with no third an Asus2 by a margin too wide for the counter to
+  reach.
+- **`I` shows what the ear heard.** The counters — strums, cooked, held, too
+  quick, unnamed — and the last four hearings with the pitches that were in
+  the air, what they were named and how well they fitted. A drill about which
+  chord you played had no way to answer the one question that matters when a
+  chord does not cook: was it not heard, or heard as something else. Those two
+  have different owners and now they look different.
 - **The kitchen cools when the menu changes.** The flames climbed from the
   first bell to the last, so the hardest shapes arrived at the tightest clock
   in the game: measured, a pot lived 12.6 s at the Opening and 3.0 s by

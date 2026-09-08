@@ -324,6 +324,10 @@ export function createScene(container) {
    * is being chosen, `null` once it is. Nothing else the game says lands
    * while it is up — see `drawNotice`. */
   let menu = null;
+  /* THE EAR, SHOWN. Lines the glue hands over while the overlay is on, or
+   * `null`. It is the one thing in this game a player cannot otherwise see:
+   * what the detector reported and what it was called. */
+  let diag = null;
   /* The coach speaks in the first service only. It is a flag the glue sets
    * from what it remembers, and the tips it has given are remembered here so
    * each is said once. */
@@ -466,6 +470,7 @@ export function createScene(container) {
     drawStrip(t);
     drawKitchen(t);
     drawFx(t);
+    if (diag) drawDiag();
     if (menu) drawMenu(t);
     if (banner) drawBanner(t);
     drawNotice(t);
@@ -1513,6 +1518,30 @@ export function createScene(container) {
   }
 
   /**
+   * WHAT THE EAR HEARD, over the dining room, while `I` holds it open.
+   *
+   * A drill whose whole subject is which chord you played has one question
+   * nothing on the screen could answer: when a chord does not cook, was it
+   * not heard, or heard as something else? The counters say which stage lost
+   * it and the lines under them say what was in the air. It is deliberately
+   * plain text on a plate — this is not part of the fiction, it is the same
+   * kind of thing as the badge that says which input is live.
+   */
+  function drawDiag() {
+    const lines = diag.slice(0, 6);
+    const W_ = Math.min(W - 8, Math.max(...lines.map((l) => measure(l, 'S'))) + 16);
+    const H_ = 8 + lines.length * 7 + 4;
+    const x = Math.round(W / 2 - W_ / 2);
+    const y = GEO.ROOM_Y + 4;
+    g.globalAlpha = 0.92;
+    plate(g, x, y, W_, H_, { border: P.cyanLo });
+    g.globalAlpha = 1;
+    lines.forEach((l, k) => {
+      text(g, l, x + 8, y + 6 + k * 7, { font: 'S', color: k === 0 ? P.cyanHi : P.cream });
+    });
+  }
+
+  /**
    * THE OPTIONS PLATE, over the dining room: `options.js` decides every box
    * and this only paints them. The room under it is dimmed the way the
    * kitchen is under the closing card, so the plate reads as the thing to
@@ -1847,6 +1876,9 @@ export function createScene(container) {
     notices.push({ lines: (lines || []).map((s) => String(s)), ms: ms || 3600 });
   }
 
+  /** The lines of the ear overlay, or `null` to take it down. */
+  function setDiag(lines) { diag = lines && lines.length ? lines.map(String) : null; }
+
   /** The options plate to draw — a layout from `menuLayout` — or `null`. */
   function setMenu(layout) {
     menu = layout || null;
@@ -1889,7 +1921,7 @@ export function createScene(container) {
   }
 
   return {
-    update, event, setHints, setSeed, setCoach, setTimes, say, setPaused, setClosing, setMenu, onPointer, destroy,
+    update, event, setHints, setSeed, setCoach, setTimes, say, setPaused, setClosing, setMenu, setDiag, onPointer, destroy,
     get stats() { return stats; },
   };
 }

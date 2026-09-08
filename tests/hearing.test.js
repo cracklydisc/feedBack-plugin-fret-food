@@ -68,7 +68,7 @@ test('a string that did not ring costs recall; a string nobody played costs prec
   assert.equal(muted.chord, 'C');
   assert.equal(muted.recall, 0.8);
   assert.equal(muted.precision, 1);
-  const extra = nameFrom([40].concat(full));         // the low E rang anyway
+  const extra = nameFrom([45].concat(full));         // the A rang open instead of fretted
   assert.equal(extra.chord, 'C');
   assert.equal(extra.recall, 1);
   assert.ok(extra.precision < 1);
@@ -76,6 +76,43 @@ test('a string that did not ring costs recall; a string nobody played costs prec
   const partial = nameFrom(full.concat([48 + 12, 52 + 19]));
   assert.equal(partial.chord, 'C');
   assert.equal(partial.precision, 1, 'an octave and a twelfth above a played string are its own');
+});
+
+test('the string a shape tells you to mute is not a stranger when it rings', () => {
+  /* The C, as a beginner actually plays it. `x32010` mutes the low E and a
+   * thumb damps it about as often as not; a strummed low E is the loudest
+   * string there is, so the detector reports it. It used to cost precision —
+   * a clean C came back 0.87 — and a session with a guitar reported exactly
+   * that chord, not confused with another, simply not heard. */
+  const clean = nameFrom(pitchesOf('C'));
+  const rings = nameFrom([40].concat(pitchesOf('C')));
+  assert.equal(rings.chord, 'C');
+  assert.equal(rings.fit, clean.fit, 'the low E ringing on a C costs nothing');
+  assert.equal(rings.precision, 1);
+  // Same for the other four shapes built on a muted string.
+  for (const [chord, stray] of [['Am', 40], ['Dm', 45], ['D', 45], ['F', 40]]) {
+    const got = nameFrom([stray].concat(pitchesOf(chord)));
+    assert.equal(got.chord, chord, chord + ' lost itself to a string it asks you to mute');
+    assert.equal(got.precision, 1);
+  }
+  // And it is forgiveness, not blindness: the shape still has to be there.
+  assert.equal(nameFrom([40, 47, 52, 55, 59, 64]).chord, 'Em', 'six open strings are an Em, not a C');
+});
+
+test('when the pitches cannot separate two shapes, the counter says which', () => {
+  /* Every tie in this vocabulary is the chord's third — Am without its C4 is
+   * the pitches of an A — and the third sits on a thin string where a lazy
+   * finger leaves it. Deciding those by the order the shapes are written in
+   * always picked the same side. */
+  const noThird = pitchesOf('Am').filter((p) => p !== 60);
+  assert.equal(nameFrom(noThird, { wanted: ['A'] }).chord, 'A');
+  assert.equal(nameFrom(noThird, { wanted: ['Am'] }).chord, 'Am');
+  assert.equal(nameFrom(noThird, { wanted: ['G', 'Em'] }).chord, nameFrom(noThird).chord,
+    'a counter that wants neither changes nothing');
+  // What it must never do: talk the ear out of a chord it plainly heard.
+  assert.equal(nameFrom(pitchesOf('C'), { wanted: ['Am'] }).chord, 'C');
+  assert.equal(nameFrom(pitchesOf('Em'), { wanted: ['C', 'G'] }).chord, 'Em');
+  assert.equal(nameFrom(pitchesOf('F+'), { wanted: ['F'] }).chord, 'F+');
 });
 
 test('nothing in the air, or nothing that fits, is named nothing', () => {

@@ -230,6 +230,10 @@ export function earFor(quality) {
  */
 export const MIN_CHANGE_MS = 250;
 
+/* How near two shapes have to be before the counter is asked which one it
+ * was. See the note in `nameFrom`. */
+export const TIE_BAND = 0.08;
+
 /**
  * The shape as the engine wants it: `{ s, f }` with `s` counted from 0 at the
  * low E, muted strings left out.
@@ -253,6 +257,16 @@ export function engineNotes(chord) {
  * pitch it reports. */
 export const TUNING = [40, 45, 50, 55, 59, 64];
 
+/** A MIDI pitch as a player would say it: `C3`, `F#4`. For the overlay that
+ *  shows what the ear actually heard, and for anything else that has to print
+ *  a note. The S font has no lowercase, so the sharps are spelled with `#`. */
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export function noteName(midi) {
+  const m = Math.round(Number(midi));
+  if (!Number.isFinite(m)) return '?';
+  return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+}
+
 /** The pitches a shape puts in the air, low to high. Muted strings are not in it. */
 export function pitchesOf(chord) {
   const s = SHAPES[chord];
@@ -264,6 +278,34 @@ export function pitchesOf(chord) {
 
 const PITCHES = {};
 for (const name of Object.keys(SHAPES)) PITCHES[name] = pitchesOf(name);
+
+/*
+ * THE STRING THE SHAPE TELLS YOU TO MUTE, WHICH RINGS ANYWAY.
+ *
+ * A session with a guitar reported the C in particular: not confused with
+ * another chord, simply not heard, over and over, while the rest of the
+ * vocabulary was fine. The arithmetic says what is different about it, and it
+ * is not the fingering — it is the string that is NOT in it.
+ *
+ * C is `x32010`: the low E is muted, and a beginner's thumb damps it about as
+ * often as not. A strummed low E is the loudest string on the guitar, so the
+ * detector reports it, and precision counted it as a note the shape does not
+ * explain: a clean C came back 0.87 instead of 1, a C with one more thing
+ * wrong came back 0.76, and against a strict ear that is the difference
+ * between cooking and nothing happening. Five shapes are built this way —
+ * C and Am mute the low E, Dm, D and F mute the low E and the A — and C is
+ * the one a player meets first and plays most.
+ *
+ * So the open sound of a string a shape asks you to MUTE is not a stranger.
+ * It is that shape's own known imperfection, and forgiving it costs no
+ * discrimination: Em is those same six strings all ringing, and a hand
+ * playing Em still names Em by a mile, because recall does not move.
+ */
+const MUTED = {};
+for (const name of Object.keys(SHAPES)) {
+  const shape = SHAPES[name];
+  MUTED[name] = shape.frets.map((f, i) => (f < 0 ? TUNING[i] : null)).filter((p) => p !== null);
+}
 
 /* A pitch the ear reports that the shape does not contain can still BE the
  * shape: a string's own partials are an octave and an octave-and-a-fifth
@@ -298,6 +340,7 @@ export function nameFrom(heard, opts) {
   const air = [...new Set((heard || []).filter((n) => Number.isFinite(n)).map((n) => Math.round(n)))];
   if (!air.length) return null;
   const only = o.only && o.only.length ? o.only : Object.keys(PITCHES);
+  const asked = o.wanted && o.wanted.length ? o.wanted : null;
   let best = null;
   for (const chord of only) {
     const want = PITCHES[chord];
@@ -311,20 +354,46 @@ export function nameFrom(heard, opts) {
      * ringing, which means recall has to be literal. */
     let hit = 0;
     for (const p of want) if (air.includes(p)) hit++;
+    const spare = MUTED[chord] || [];
     let known = 0;
     for (const h of air) {
-      if (want.includes(h) || PARTIALS.some((k) => want.includes(h - k))) known++;
+      if (want.includes(h) || PARTIALS.some((k) => want.includes(h - k)) || spare.includes(h)) known++;
     }
     const recall = hit / want.length;
     const precision = known / air.length;
     if (!recall || !precision) continue;
     const fit = (2 * recall * precision) / (recall + precision);
-    /* A tie goes to the shape with more of itself in the air: between two
-     * that fit equally, the one with more strings confirmed has more behind
-     * it. It is the same rule `bestFit` breaks its ties with. */
-    if (!best || fit > best.fit + 1e-9 || (Math.abs(fit - best.fit) <= 1e-9 && hit > best.hit)) {
-      best = { chord, fit, hit, recall, precision };
-    }
+    /* TOO CLOSE TO CALL: the counter decides.
+     *
+     * Every tie in this vocabulary is the chord's THIRD, and there are
+     * twenty-one of them: Am without its C4 is the pitches of an A, Em
+     * without its G3 an E, Dm without its F4 a D. Not one of them turns on
+     * the bass — it is always the one note that says major or minor, and in
+     * open position that note is usually on a thin string where a lazy finger
+     * leaves it. When two shapes are inside `TIE_BAND` of each other the
+     * pitches have said everything they can, and deciding it by the order the
+     * shapes happen to be written in is an answer with nothing behind it:
+     * every open minor is declared before its major, so a hand playing A with
+     * a missing third was told it had played Am, for ever.
+     *
+     * This is not the mistake the whole notes road exists to undo. That one
+     * asked "which of the WANTED shapes fits best" and so could only ever
+     * answer with a chord somebody ordered, however badly it fitted. This
+     * asks the pitches first, across everything the game knows, and hands the
+     * counter only what they could not separate. Measured over every shape
+     * with a string missing: 143 of 144 come back right when the counter
+     * wants them, and all 756 whole shapes still name themselves when the
+     * counter wants something else. Past about a tenth the second of those
+     * starts to fall, which is the counter talking the ear out of what it
+     * plainly heard, so the band stops well short of it.
+     */
+    const level = best && best.fit - fit <= TIE_BAND + 1e-9;
+    const mine = asked ? asked.includes(chord) : false;
+    const theirs = best && asked ? asked.includes(best.chord) : false;
+    const better = !best
+      || (fit > best.fit + 1e-9 && !(theirs && !mine && fit - best.fit <= TIE_BAND))
+      || (level && ((mine && !theirs) || (mine === theirs && fit > best.fit + 1e-9)));
+    if (better) best = { chord, fit, hit, recall, precision };
   }
   return best && best.fit >= floor ? best : null;
 }
@@ -451,7 +520,25 @@ export function createEngineAdapter(port, opts) {
   let armed = true;
   let lastOnsetAt = -1e9;
   let scoring = false;
-  const stats = { onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0, ear: o.ear || 'medium', road: '?' };
+  const stats = {
+    onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0,
+    ear: o.ear || 'medium', road: '?',
+    /* The last few hearings, newest first, for the overlay: what was in the
+     * air, what it was called and what became of it. It is the only way to
+     * tell a strum the detector never reported from a chord this code named
+     * wrongly, and the difference decides who has the bug. */
+    last: [],
+  };
+  const LOG = 4;
+  function logged(why, air, best) {
+    stats.last.unshift({
+      why,
+      air: (air || []).slice().sort((a, b) => a - b).map(noteName),
+      chord: best ? best.chord : null,
+      fit: best ? best.fit : 0,
+    });
+    if (stats.last.length > LOG) stats.last.length = LOG;
+  }
   setEar(o.ear || 'medium');
   let lastNamed = null;               // { chord, at }: the shape the hand holds, and when it was last heard
 
@@ -481,7 +568,10 @@ export function createEngineAdapter(port, opts) {
       air.push(Math.round(n.midi));
     }
     stats.air = air.slice().sort((a, b) => a - b);
-    const best = nameFrom(air, { floor: ear.fit });
+    // The counter is handed over as a TIE-BREAK and never as a filter: see
+    // `nameFrom`. What is played is named first, out of everything.
+    const best = nameFrom(air, { floor: ear.fit, wanted: port.candidates });
+    heardAir = air;
     return best ? { chord: best.chord, quality: best.fit } : null;
   }
 
@@ -514,8 +604,11 @@ export function createEngineAdapter(port, opts) {
     return best ? { chord: best.chord, quality: best.score } : null;
   }
 
+  let heardAir = [];               // what the notes road last had in front of it
+
   /** Names what was just played, and decides whether the game hears it. */
   async function hear() {
+    heardAir = [];
     const wanted = port.candidates.slice();
     if (!wanted.length) return;
     await wait(SETTLE_MS);
@@ -531,6 +624,7 @@ export function createEngineAdapter(port, opts) {
        * The hand was heard NOW, which is what the quarter of a second below
        * is measured from. */
       stats.ring++;
+      logged('ring', heardAir, best);
       lastNamed = { chord: best.chord, at };
       return;
     }
@@ -538,6 +632,7 @@ export function createEngineAdapter(port, opts) {
       // A different chord a quarter of a second after the last: no hand
       // changes shape that fast. The ring, misjudged; heard on its next strum.
       stats.quick++;
+      logged('quick', heardAir, best);
       return;
     }
     if (best && !wanted.includes(best.chord)) {
@@ -546,11 +641,13 @@ export function createEngineAdapter(port, opts) {
        * it is still not charged as a miss: see below. The hand is holding it
        * now, which is what stops its next strum being read as a change. */
       stats.unknown++;
+      logged('nobody wants', heardAir, best);
       lastNamed = { chord: best.chord, at };
       return;
     }
     if (best) {
       stats.named++;
+      logged('cooked', heardAir, best);
       lastNamed = { chord: best.chord, at };
       send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.quality)), at, heardAt: at });
       return;
@@ -571,6 +668,7 @@ export function createEngineAdapter(port, opts) {
      * It is counted, though: `unknown` climbing while `named` does not is the
      * signature of an ear set too strict for this guitar. */
     stats.unknown++;
+    logged('no chord', heardAir, null);
   }
 
   async function tick() {

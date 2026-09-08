@@ -425,8 +425,36 @@ is the hand still holding it rather than a change. Twenty-eight shapes, every
 one of which names itself exactly and none of which names another — that is a
 test, not a hope.
 
+Two things the pitches alone cannot settle, and both were found by measuring
+every shape in the game with a string missing or a stray one ringing:
+
+- **The string a shape tells you to mute.** C is `x32010`: the low E is muted,
+  and a beginner's thumb damps it about as often as not. A strummed low E is
+  the loudest string on the guitar, so the detector reports it, and it used to
+  count as a note the shape does not explain — a clean C came back 0.87
+  instead of 1, and a C with one more thing wrong came back 0.76. Five shapes
+  are built that way (C and Am mute the low E; Dm, D and F mute the low E and
+  the A) and C is the one a player meets first. That string ringing is now
+  forgiven: it is the shape's own known imperfection, not a stranger.
+- **The third.** Every tie in the vocabulary is one — twenty-one of them. Am
+  without its C4 is the pitches of an A, Em without its G3 an E, Dm without
+  its F4 a D, and not one of them turns on the bass. In open position the
+  third sits on a thin string where a tired finger leaves it. When two shapes
+  come within a hair of each other the pitches have said all they can, so the
+  counter is asked which of them somebody ordered. Measured: 143 of 144
+  degraded shapes come back right when the counter wants them, and all 756
+  whole shapes still name themselves when the counter wants something else.
+  The counter never talks the ear out of a chord it plainly heard.
+
 `scoreChord` stays as the fallback for a build with no ML detector, with its
 ties broken on the fretted strings, since the open ones are nearly free.
+
+**And you can watch it.** `I` opens a plate over the dining room with the
+counters — strums heard, cooked, held, too quick, unnamed — and the last few
+things the ear had in front of it: the pitches, what they were called and how
+well they fitted. It is the only way to tell a strum the detector never
+reported from a chord this code named wrongly, and those two have different
+owners.
 
 The fit becomes the strum's `quality`, and the game already treats quality
 under 0.8 as a dirty strum that leaves soot. "How cleanly it came out" and

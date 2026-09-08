@@ -82,6 +82,12 @@ const UNLOCKS_WAIT_MS = 500;
 /* The mute key, beside the pause key: also free on the keyboard instrument. */
 const MUTE_KEY = 'm';
 
+/* And the one that shows what the ear is hearing. `I` for input: free on the
+ * keyboard instrument, free in the app, and the question it answers — "was
+ * that not heard, or heard as something else?" — is the only one a player
+ * cannot answer by looking at the screen. */
+const DIAG_KEY = 'i';
+
 /* How long the closing card stays on the screen before the hub takes over.
  *
  * `over` used to call `finish()` in the same tick, and `finish()` calls the
@@ -484,6 +490,7 @@ async function start({ container, modifiers, sdk }) {
    * the screen are simply never older than the picture they are drawn on. */
   function render() {
     scene.update(game.snapshot());
+    if (diagOn) { try { scene.setDiag(diagLines()); } catch (_) {} }
   }
 
   /* ── the pause ────────────────────────────────────────────────────────
@@ -506,6 +513,25 @@ async function start({ container, modifiers, sdk }) {
         : null);
     } catch (_) { /* the drawing must not stop the service */ }
   }
+  /* The ear overlay: the counters, then the last few things heard. Built
+   * fresh every frame from the adapter's own stats, so it cannot drift from
+   * what the adapter actually did. */
+  let diagOn = false;
+  function diagLines() {
+    const s = (current && current.stats) || {};
+    const head = [
+      'EAR ' + String(s.ear || '?').toUpperCase() + ' - ' + String(s.road || label).toUpperCase()
+        + ' - STRUMS ' + (s.onsets || 0) + ' COOKED ' + (s.named || 0)
+        + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0),
+    ];
+    const rows = (s.last || []).map((r) => {
+      const air = r.air && r.air.length ? r.air.join(' ') : 'NOTHING IN THE AIR';
+      const said = r.chord ? label(r.chord) + ' ' + r.fit.toFixed(2) : 'NO CHORD';
+      return air + '  -  ' + said + '  ' + String(r.why).toUpperCase();
+    });
+    return head.concat(rows.length ? rows : ['PLAY SOMETHING']);
+  }
+
   function onKey(e) {
     if (!e || e.repeat || e.altKey || e.metaKey || e.ctrlKey || typing()) return;
     const k = String(e.key || '').toLowerCase();
@@ -529,6 +555,10 @@ async function start({ container, modifiers, sdk }) {
     if (k === PAUSE_KEY) {
       if (typeof e.preventDefault === 'function') e.preventDefault();
       setPause(!paused);
+    } else if (k === DIAG_KEY) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      diagOn = !diagOn;
+      try { scene.setDiag(diagOn ? diagLines() : null); } catch (_) {}
     } else if (k === MUTE_KEY) {
       if (typeof e.preventDefault === 'function') e.preventDefault();
       const off = sfx.mute();
@@ -562,7 +592,7 @@ async function start({ container, modifiers, sdk }) {
     toldKeys = true;
     const lines = ['KEYBOARD ON - FOR DEVELOPMENT - NOTHING IS SCORED'];
     lines.push('C D E F G A B PLAY THE CHORDS - SHIFT FOR THE OTHER ONE');
-    lines.push('1 TO 6 PLAY THE 7THS AND THE FLATS - P PAUSES - M MUTES');
+    lines.push('1 TO 6 PLAY THE 7THS AND THE FLATS - P PAUSES - M MUTES - I SHOWS THE EAR');
     lines.push('7 8 9 Q W R Y U AND SHIFT-G PLAY THE OTHER SHAPES - THE CARD SAYS WHICH');
     let shared = [];
     try { shared = ['c', 'd', 'e', 'f', 'g', 'a', 'b', 'p'].filter((k) => isTaken(k)); } catch (_) {}
