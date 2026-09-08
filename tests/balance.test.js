@@ -15,11 +15,21 @@
  *
  * ── REAL NUMBERS, measured on twelve seeds (1 2 3 5 7 11 13 17 23 42 77 99) ─
  *
- *   profile        duration      level     clean cycles   on nobody   cash
- *   perfect        221-292 s     4-5       0.84-0.94      0.000       8208
- *   latency-only   231-286 s     4-5       0.78-0.95      0.000       7719
- *   real           197-272 s     4-5       0.66-0.83      0.094       5534
- *   worst          167-255 s     3-5       0.58-0.75      0.181       3392
+ *   profile        duration   level   clean   cash     (seed 7)
+ *   perfect        596 s      10      0.92    69,400
+ *   latency-only   549 s      10      0.97    60,390
+ *   real           532 s       9      0.96    55,836
+ *   worst          501 s       9      0.96    42,038
+ *
+ * Those are a long way from the first set this table held, which was measured
+ * when the ladder was six services and the flames climbed through all of
+ * them. What moved them, in order, each written down where it was decided:
+ * the pot lives a sixth longer, the shapes climb before the pans, a step
+ * cooked steadies the other pots by a fifth between them, and the kitchen
+ * cools when a tier of shapes arrives (`TIER_RELIEF`). The automatic player
+ * changes chord in a third of a second, so what it measures is the round trip
+ * between pots and never a hand: the number that matters is the SLOW hand on
+ * two pots, 8 to 9 minutes, and it is in `TIER_RELIEF`.
  *
  * ── WHERE THE SPEC AND THE MEASUREMENT DO NOT TALK ────────────────────
  *
@@ -196,14 +206,15 @@ test('with the fire never stopping the wall arrives, and it shows', () => {
   // while your hands are somewhere else. You run out of hands, not of heat, and
   // this run is the proof: strikes off, it reaches level 11 and loses 57.
   const r = runGame({ input: 'bot', profile: 'perfect', seed: 7, seconds: 600, rules: { STRIKES: 999 } });
-  /* More than five, down from twelve, down from twenty. Twelve became twenty
-   * when the pot got a sixth more life; five is the plates on sticks: every
-   * step cooked hands the other pots a fifth of a pot between them, and the
-   * same ten minutes now lose 6 to 13 depending on the deal instead of 28 to
-   * 37. The point stands at five as it did at twenty — a player who cannot
-   * lose still loses a pot every minute or so past the wall. (Handed to EACH
-   * other pot instead of split, the same run loses nobody at all, which is
-   * why `SPIN_SHARED` exists.) */
-  assert.ok(r.ruined > 5, 'past the wall customers are lost of necessity (lost ' + r.ruined + ')');
+  /* More than one, down from five, down from twelve, down from twenty. Every
+   * drop is a rule that gave the hand more room, and each is written down
+   * where it was made: the pot lives a sixth longer, a step cooked steadies
+   * the other pots, and now the kitchen cools when a tier of shapes arrives
+   * (`TIER_RELIEF`). This band was never a target. It is the proof that a
+   * service can END — the automatic player cannot be beaten by the clock on
+   * one pot, so a run where it loses nobody at all is a run with no wall in
+   * it, and a game with no wall does not finish. Three lost in ten minutes
+   * with the strikes switched off is three services closed with them on. */
+  assert.ok(r.ruined > 1, 'past the wall customers are lost of necessity (lost ' + r.ruined + ')');
   assert.ok(r.served > r.ruined / 2, 'but it was not always like that (served ' + r.served + ')');
 });

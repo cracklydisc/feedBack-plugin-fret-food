@@ -120,6 +120,10 @@ export const RULES = {
    * a two second window inside a ten second life. */
   READY: 80,               // above this the next step comes out clean
   FINGER_GRACE: 5,         // and each finger that has to move buys this much of it
+  /* However much the kitchen cools, a burner never goes below the one the
+   * opening is played on: relief is a step back down the ladder, not a way
+   * to a kitchen easier than the first minute of the game. */
+  BURNER_FLOOR: 2.2,
   /* THE PLATES ON STICKS. With two pots or more the round trip is what kills:
    * cook one pot cleanly and the others have cooled the whole while, so a
    * player who plays one ticket well loses the rest, and only luck — two
@@ -128,6 +132,37 @@ export const RULES = {
    * every OTHER pot on the counter a fifth of a full pot back. Play in turn
    * and they all hold; camp on one and the others still go — a fifth is a
    * fifth, not a reset — so being slow somewhere is still paid for. */
+  /* THE KITCHEN COOLS WHEN THE MENU CHANGES.
+   *
+   * The flames climb from the first bell to the last, so the hardest shapes
+   * in the game arrive at the tightest clock there is: measured, a pot lives
+   * 12.6 s at the Opening and 4.3 s by Closing Time, and the barres are dealt
+   * at 6 s while the two-finger shapes had twelve. A player meets the neck
+   * with less time than they had for C to Am, which is the difficulty curve
+   * upside down — a session said so in one line: "tendo a perdere prima di
+   * aver provato tutti gli accordi".
+   *
+   * So a bell that unlocks a TIER OF SHAPES takes the burner back down by
+   * this much instead of pushing it up by `step`. A new shape is met with a
+   * pot that lives about as long as the last new shape did; a bell that opens
+   * a PLACE climbs as it always has, because that difficulty is the round
+   * trip and not the hand. The flames still creep up inside every level
+   * (`GROW_PER_S`), so nothing stands still.
+   *
+   * 0.20, which is half the step it replaces, so the ladder still descends —
+   * just gently while the shapes are arriving. Measured, the life of a pot at
+   * each of the nine bells:
+   *
+   *     without   12.6  9.6  7.5  6.2  5.2  4.4 | 3.8  3.4  3.0
+   *     with      12.6 11.6 10.8 10.0  9.4  8.8 | 6.7  5.4  4.5
+   *                 ── the six tiers of shapes ──  ── the pans ──
+   *
+   * The neck is met at 8.8 s instead of 4.4, and the counter growing still
+   * takes the clock down to four and a half. What it buys is the player this
+   * game is for: a slow hand on two pots — 0.7 s a change plus a quarter
+   * second a finger — lasted 271 to 405 s over twelve seeds and now lasts 479
+   * to 567. */
+  TIER_RELIEF: 0.2,
   SPIN_BONUS: 0.2,
   /* Whether that fifth is handed to EACH other pot or split between them.
    * Split, measured on the bench: handed whole, with five pots a lap of the
@@ -874,14 +909,21 @@ export function createGame(opts) {
         emit('perfect', { level: S.level, bonus: perfect });
       }
       S.nextLevelAt += R.LEVEL_MS;
+      const before = levelSpec(S.level);
       S.level++;
       const spec = levelSpec(S.level);
       S.levelName = spec.name || 'Service';
       S.levelCash = 0;
       S.servedThisLevel = 0;
       S.lostThisLevel = 0;
-      for (const st of S.stations) st.burner += spec.step || 0;
-      emit('level', { level: S.level, name: spec.name, stations: S.stations.length, perfect });
+      /* A tier of shapes arriving cools the kitchen; a place opening heats
+       * it. See `TIER_RELIEF` — the two never happen at one bell, which the
+       * level table has a test of its own for. */
+      const relief = (spec.shapes || 0) > (before.shapes || 0) ? R.TIER_RELIEF : 0;
+      for (const st of S.stations) {
+        st.burner = Math.max(R.BURNER_FLOOR, st.burner + (relief ? -relief : (spec.step || 0)));
+      }
+      emit('level', { level: S.level, name: spec.name, stations: S.stations.length, perfect, relief });
     }
 
     /* The counter grows one place at a time and between the bells, not at

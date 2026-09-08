@@ -721,6 +721,40 @@ test('the rules may change until the first chord, and the counter is dealt again
   assert.equal(g.state.stations[0].order, dish);
 });
 
+test('a tier of shapes cools the kitchen, a place opening heats it', () => {
+  /* The difficulty curve, the right way up: the hardest shapes used to arrive
+   * at the tightest clock the game has. See `TIER_RELIEF`. */
+  const levels = [
+    // The opening is lit above the floor, so a kitchen that cools has room to.
+    { name: 'one',   stations: 2, shapes: 1, maxSteps: 4, step: 0.5, burnerBoost: 1 },
+    { name: 'two',   stations: 2, shapes: 2, maxSteps: 4, step: 0.5, burnerBoost: 0 },  // a tier: cools
+    { name: 'three', stations: 3, shapes: 2, maxSteps: 4, step: 0.5, burnerBoost: 0 },  // a place: heats
+  ];
+  const g = createGame({ menu: MENU, levels, seed: 7, rules: { STRIKES: 9999, GROW_PER_S: 0 } });
+  g.open();
+  const st = g.state.stations[0];
+  const bells = [];
+  g.on('level', (e) => bells.push({ level: e.level, relief: e.relief, burner: +st.burner.toFixed(2) }));
+  const opening = st.burner;
+  for (let k = 0; k < 130; k++) g.tick(1000);
+  assert.equal(bells.length, 2, 'two bells rang');
+  assert.equal(bells[0].relief, RULES.TIER_RELIEF, 'the tier of shapes cools the kitchen');
+  assert.ok(bells[0].burner < opening, 'so the pot lives longer than it did: ' + bells[0].burner);
+  assert.equal(bells[1].relief, 0, 'the place opening does not');
+  assert.ok(bells[1].burner > bells[0].burner, 'and the flames climb again: ' + bells[1].burner);
+});
+
+test('however much it cools, the kitchen never goes under its opening', () => {
+  const levels = Array.from({ length: 6 }, (_, i) => (
+    { name: 'lv' + i, stations: 2, shapes: i + 1, maxSteps: 4, step: 0, burnerBoost: 0 }));
+  const g = createGame({ menu: MENU, levels, seed: 7, rules: { STRIKES: 9999, GROW_PER_S: 0 } });
+  g.open();
+  for (let k = 0; k < 400; k++) g.tick(1000);
+  for (const st of g.state.stations) {
+    assert.ok(st.burner >= RULES.BURNER_FLOOR - 1e-9, 'burner ' + st.burner + ' is under the floor');
+  }
+});
+
 test('a step cooked gives every other pot a fifth of a pot back', () => {
   /* The plates on sticks: with two pots the round trip is what kills, so a
    * touch on one plate steadies the others a little. A fifth, not a reset —
