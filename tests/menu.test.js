@@ -398,3 +398,105 @@ test('the same seed invents the same menu', () => {
   const c = inventMenu(MENU, 12, 6).map((m) => m.id + ':' + m.steps.join(''));
   assert.notDeepEqual(a, c, 'and a different seed has to give a different menu');
 });
+
+/* ── the variety a service actually offers ─────────────────────────── */
+
+/** Every recipe a tier can be dealt, and the changes inside them. */
+function offered(menu, tier) {
+  const pool = menu.filter((m) => (m.level || 1) <= tier);
+  const changes = new Set();
+  for (const m of pool) {
+    for (let i = 1; i < m.steps.length; i++) {
+      if (m.steps[i] !== m.steps[i - 1]) changes.add(m.steps[i - 1] + '>' + m.steps[i]);
+    }
+  }
+  return { pool, changes };
+}
+
+test('no two dishes on the menu are the same recipe', () => {
+  /* The variety a player feels is the chords under their hand, not the word on
+   * the ticket. `Dm Dm G G` was Dorian Broth written by hand AND Half-Step Ragu
+   * invented beside it: two tickets, one exercise. The inventor deduped within
+   * a level, which caught neither the hand-written menu nor the level above. */
+  for (const seed of [1, 7, 11, 42]) {
+    const menu = inventMenu(MENU, seed, 10);
+    const seen = new Map();
+    for (const m of menu) {
+      const recipe = m.steps.join(' ');
+      assert.equal(seen.has(recipe), false,
+        'seed ' + seed + ': ' + m.dish + ' is ' + seen.get(recipe) + ' again — ' + recipe);
+      seen.set(recipe, m.dish);
+    }
+  }
+});
+
+test('the opening deals more than one silhouette', () => {
+  /* Every dish the Opening could invent used to be `X X Y Y`: the band held
+   * each degree for exactly two steps and allowed one change, so eleven of its
+   * fourteen tickets had the same shape. A session felt it as "sempre lo
+   * stesso ordine di combinazione di accordi" — the chords varied, the drill
+   * never did. Where the change FALLS is most of what a change drill is. */
+  const { pool } = offered(inventMenu(MENU, 7, 10), 1);
+  const shapes = new Set();
+  for (const m of pool) {
+    // The silhouette: how long each chord is held, `C C G` -> "2,1".
+    const runs = [];
+    for (const c of m.steps) {
+      if (runs.length && runs[runs.length - 1].c === c) runs[runs.length - 1].n++;
+      else runs.push({ c, n: 1 });
+    }
+    shapes.add(runs.map((r) => r.n).join(','));
+  }
+  assert.ok(shapes.size >= 4, 'the opening deals one drill in several shapes: ' + [...shapes].join('  '));
+});
+
+test('every tier offers enough to drill without repeating itself', () => {
+  /* Measured before this was written, at six invented dishes a tier: the
+   * Opening had fourteen tickets and eleven distinct changes, and a service
+   * spends forty-five seconds there. The bands below are what ten a tier buys.
+   * They are floors and not targets — the point is to notice if a change to
+   * the inventor quietly empties a tier, which is the one thing a player
+   * feels immediately and no other test would see. */
+  /* The worst case over thirty seeds, less a little: floors, not targets. The
+   * point is to notice if a change to the inventor quietly empties a tier —
+   * the one thing a player feels immediately and no other test would see.
+   *
+   * Tier one's change count is the tier's own ceiling and not the inventor's:
+   * six shapes and one change to a dish is at most a few dozen ordered pairs,
+   * and twenty tickets cannot show more than twenty of them. What the Opening
+   * gained is not more changes, it is more SHAPES of drill on the same ones —
+   * which is the test above, and is what the session was actually describing. */
+  const floors = [null, [18, 11], [40, 34], [58, 55], [76, 80], [95, 105], [108, 125]];
+  for (const seed of [1, 7, 11, 42]) {
+    const menu = inventMenu(MENU, seed, 10);
+    for (let tier = 1; tier <= 6; tier++) {
+      const { pool, changes } = offered(menu, tier);
+      const [dishes, moves] = floors[tier];
+      assert.ok(pool.length >= dishes,
+        'seed ' + seed + ' tier ' + tier + ' offers only ' + pool.length + ' dishes');
+      assert.ok(changes.size >= moves,
+        'seed ' + seed + ' tier ' + tier + ' offers only ' + changes.size + ' distinct changes');
+    }
+  }
+});
+
+test('every shape the game teaches is asked for by some dish', () => {
+  /* A shape with no dish behind it is a diagram nobody is ever sent to play.
+   * `Gsus4` was one: the neck learned it and the menu never asked, because
+   * `KEYS` gave most keys an `Isus4`, an `Iadd9`, a `Vsus4` and a `V/3` and
+   * not one PATTERN used any of them — those degrees reached a player only
+   * through the handful of dishes written by hand for them.
+   *
+   * Reaching them evenly needed weighting, not more patterns: `Iadd9` lives in
+   * one key where `I V vi IV` can be written in every key there is, so an even
+   * draw over PATTERNS is a very uneven draw over SHAPES. Measured over forty
+   * seeds before the weight, Cadd9 reached an invented dish in 13 and Gsus4 in
+   * 15; after, 21 and 26, and the whole menu covers both on 40 of 40 because
+   * the hand-written dishes carry what the roll misses. */
+  for (const seed of [1, 7, 11, 42]) {
+    const asked = new Set(inventMenu(MENU, seed, 10).flatMap((m) => m.steps));
+    for (const c of Object.keys(SHAPES)) {
+      assert.ok(asked.has(c), 'seed ' + seed + ': no dish on the menu ever asks for ' + c);
+    }
+  }
+});

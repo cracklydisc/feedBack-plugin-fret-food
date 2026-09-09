@@ -100,6 +100,73 @@ const PATTERNS = [
   { deg: ['I', 'V', 'vi', 'iii', 'IV', 'I'], name: 'Canon' },
   { deg: ['I7', 'IV7', 'I7', 'V7'], name: 'Jump' },
   { deg: ['I7', 'I7', 'IV7', 'I7', 'V7', 'IV7'], name: 'Twelve-Bar' },
+
+  /* ── THE DEGREES THE KEYS DECLARED AND NOTHING EVER DREW ───────────────
+   *
+   * `KEYS` above gives most keys an `Isus4`, an `Iadd9`, a `Vsus4`, a `V/3` —
+   * the sus, the add-nine and the bass step — and not one pattern above used
+   * any of them. Those shapes reached a player only through the five dishes
+   * written by hand for them, which is five tickets in a menu of eighty. They
+   * are also the easiest changes on the neck and the best drills there are:
+   * one finger moves and the hand stays put. */
+/* `w` is how many of the deck's slots a pattern takes, and these take three.
+ *
+ * Not favouritism: these degrees live in FEW keys — `Iadd9` only in C, `V/3`
+ * only in C, `Isus2` only in A — where `I V vi IV` can be written in every
+ * key there is. On an even draw the shapes with the fewest homes are the ones
+ * a service never meets, and measured over forty seeds that is exactly what
+ * happened: Cadd9 reached an invented dish in 13 of them and Gsus4 in 15,
+ * so a third of all services never drilled either. Weighting by how hard a
+ * shape is to reach is what makes the deck even in the thing that matters,
+ * which is the shapes and not the patterns. */
+  { deg: ['I', 'Isus4'], name: 'Suspended', w: 3 },
+  { deg: ['I', 'Isus2'], name: 'Open-Second', w: 3 },
+  { deg: ['V', 'Vsus4'], name: 'Hanging', w: 3 },
+  { deg: ['IV', 'IVsus4'], name: 'Fourth-Sus', w: 3 },
+  { deg: ['I', 'Iadd9'], name: 'Add-Nine', w: 3 },
+  { deg: ['I', 'IVadd9'], name: 'Ninth-Step', w: 3 },
+  { deg: ['I', 'Isus4', 'I', 'Isus2'], name: 'Sus-Swing', w: 3 },
+  { deg: ['I', 'V/3', 'vi'], name: 'Descent', w: 3 },
+  { deg: ['I', 'V/3', 'IV', 'V'], name: 'Bass-Walk', w: 3 },
+
+  /* ── AND MORE OF THE ORDINARY ONES ─────────────────────────────────────
+   *
+   * A session said it was drilling the same handful of changes over and over,
+   * and the count agreed: fourteen dishes at the Opening, twelve distinct
+   * changes between them. The two-degree patterns are what the first services
+   * are built from, so most of what follows is two degrees — and the rest are
+   * progressions with names of their own, which is the bar this table has
+   * always held itself to. */
+  { deg: ['V', 'vi'], name: 'Deceptive' },
+  { deg: ['I', 'ii'], name: 'Stepwise' },
+  { deg: ['IV', 'V'], name: 'Lift' },
+  { deg: ['vi', 'IV'], name: 'Lament' },
+  { deg: ['iii', 'IV'], name: 'Climb' },
+  { deg: ['ii', 'I'], name: 'Settle' },
+  { deg: ['I', 'vi', 'ii', 'V'], name: 'Doo-Wop' },
+  { deg: ['IV', 'V', 'iii', 'vi'], name: 'Royal Road' },
+  { deg: ['iii', 'vi', 'ii', 'V'], name: 'Circle' },
+  { deg: ['I', 'V', 'IV', 'V'], name: 'Barroom' },
+  { deg: ['I', 'IV', 'vi', 'V'], name: 'Seaside' },
+  { deg: ['vi', 'ii', 'V', 'I'], name: 'Homeward' },
+  { deg: ['I7', 'IV7', 'V7', 'IV7'], name: 'Shuffle' },
+
+  /* ── AND SOME LONG ONES, because the last service had almost none ───────
+   *
+   * The late bands ask for six to eight steps with five to seven changes and
+   * hold every degree for one step, so nothing shorter than SIX degrees can
+   * land in them. Of everything above, exactly one could: Canon. Saturday
+   * Night was being invented out of a single pattern, which is why it kept
+   * running out of dishes to make — and a service invented from one pattern
+   * is the complaint this whole table is answering, at the top of the ladder
+   * instead of the bottom. */
+  { deg: ['I', 'V', 'vi', 'iii', 'IV', 'V'], name: 'Grand' },
+  { deg: ['vi', 'IV', 'I', 'V', 'vi', 'V'], name: 'Ballad' },
+  { deg: ['I', 'vi', 'IV', 'V', 'iii', 'vi'], name: 'Long-Way' },
+  { deg: ['ii', 'V', 'I', 'vi', 'ii', 'V'], name: 'Standard' },
+  { deg: ['I', 'IV', 'V', 'IV', 'I', 'V'], name: 'Barn-Dance' },
+  { deg: ['iii', 'vi', 'ii', 'V', 'I', 'IV'], name: 'Full-Circle' },
+  { deg: ['I7', 'IV7', 'I7', 'V7', 'IV7', 'I7'], name: 'Quick-Change' },
 ];
 
 /*
@@ -107,11 +174,16 @@ const PATTERNS = [
  * words a dish from it can be called. A dish is one family all the way
  * through, which is the difference between a recipe and a shopping accident.
  */
+/* Exported at the foot of this file so a test can hold every noun to what the
+ * card can DRAW: two of them ("Tagliatelle", "Stracciatella") made a name that
+ * walked out of its bubble, and only on the seeds whose draw ran far enough
+ * down the pool to reach them. A closed list somebody adds to deserves a test,
+ * not a rare draw that finds it in front of a player. */
 const FAMILIES = [
   {
     id: 'pasta', pan: 'stockpot',
     pool: ['water', 'pasta', 'tomato', 'basil', 'cream', 'cheese', 'pepper', 'garlic', 'butter'],
-    nouns: ['Tagliatelle', 'Rigatoni', 'Carbonara', 'Cacio e Pepe', 'Lasagne', 'Gnocchi'],
+    nouns: ['Tagliolini', 'Rigatoni', 'Carbonara', 'Cacio e Pepe', 'Lasagne', 'Gnocchi'],
   },
   {
     id: 'pizza', pan: 'pizza',
@@ -121,7 +193,7 @@ const FAMILIES = [
   {
     id: 'soup', pan: 'stockpot',
     pool: ['water', 'broth', 'beans', 'carrot', 'celery', 'onion', 'herbs', 'potato', 'rice'],
-    nouns: ['Minestrone', 'Ribollita', 'Pasta e Fagioli', 'Stracciatella', 'Broth'],
+    nouns: ['Minestrone', 'Ribollita', 'Pasta e Fagioli', 'Stracciata', 'Broth'],
   },
   {
     id: 'roast', pan: 'roasting',
@@ -162,9 +234,23 @@ const FAMILIES = [
  * service nothing is held, so every step is a change. Difficulty moves from
  * holding a shape to changing it, which is the order a guitarist learns in.
  */
+/* ── WHY THE OPENING HOLDS FOR ONE STEP OR TWO ──────────────────────────
+ *
+ * It held for exactly two, and with `changes: [0, 1]` letting only a
+ * two-degree pattern through, every dish the Opening could invent had the
+ * same silhouette: `X X Y Y`. Eleven of its fourteen were that, and a session
+ * felt it exactly as it is — "mi pare di allenare quasi sempre lo stesso
+ * ordine di combinazione di accordi". The chords were varied; the SHAPE of
+ * the drill never was.
+ *
+ * One or two, over three or four steps, makes `C C G`, `C G G` and `C C G G`
+ * out of the same pair — three different drills, because where the change
+ * falls is most of what a change drill is. The band still allows one change
+ * and no more, so the Opening is still two chords and still the gentlest
+ * thing on the menu. */
 const BANDS = [
   null,
-  { steps: [4, 4], changes: [0, 1], hold: [2, 2] },   // 1 Opening
+  { steps: [3, 4], changes: [0, 1], hold: [1, 2] },   // 1 Opening
   { steps: [3, 4], changes: [1, 3], hold: [1, 2] },   // 2 Lunch
   { steps: [4, 5], changes: [2, 4], hold: [1, 2] },   // 3 Lunch Rush
   { steps: [4, 6], changes: [3, 5], hold: [1, 1] },   // 4 Afternoon
@@ -204,7 +290,24 @@ function roll(level, rand, used) {
   const keys = keysFor(level);
   if (!keys.length) return null;
   const key = pick(keys, rand);
-  const usable = PATTERNS.filter((p) => p.deg.every((d) => key.deg[d]));
+  /* The deck this key can play, with `w` deciding how many slots each pattern
+   * takes in it. Built by repeating rather than by a weighted draw because
+   * `pick` is the one place a roll consumes a random number, and every roll
+   * in this file has to stay on the same seed as the one before it. */
+  const usable = [];
+  for (const p of PATTERNS) {
+    if (!p.deg.every((d) => key.deg[d])) continue;
+    /* And not one that CANNOT reach this band however the holds fall. A
+     * pattern of `d` degrees gives at most `d - 1` changes and at least `d`
+     * steps, so a four-degree pattern in a band wanting five changes is a
+     * wasted roll — and at the late levels most of the table was exactly
+     * that, which is why they kept returning fewer dishes than they were
+     * asked for. Filtering here rather than letting `roll` return null keeps
+     * every draw productive. */
+    if (p.deg.length - 1 < (b.changes[0] || 0)) continue;
+    if (p.deg.length * b.hold[1] < b.steps[0]) continue;
+    for (let k = 0; k < (p.w || 1); k++) usable.push(p);
+  }
   if (!usable.length) return null;
   const pattern = pick(usable, rand);
 
@@ -249,6 +352,15 @@ function roll(level, rand, used) {
       : barre ? 'Barre'
         : pattern.name;
   const dish = word + ' ' + noun + (minor ? ' in Minor' : '');
+  /* Two tickets with the same NAME and different recipes is the one collision
+   * a player can actually see. The noun pool is picked over first
+   * (`used.has`), but a big menu exhausts it and the fallback re-picks at
+   * random — measured, four names in a hundred and sixteen. The whole name
+   * goes into the same set, so the caller's re-roll deals with it: a name is
+   * cheap to roll again, and `used` never confuses the two because a dish
+   * name is never a bare noun. */
+  if (used.has(dish)) return null;
+  used.add(dish);
 
   return {
     id: 'inv-' + level + '-' + key.root.replace('#', 's') + '-' + pattern.deg.join('') + '-' + family.id,
@@ -271,11 +383,15 @@ function roll(level, rand, used) {
  * run mean anything and what makes two players on the same seed play the same
  * service.
  */
-export function invent(level, rand, count, used) {
+export function invent(level, rand, count, used, taken) {
   const out = [];
   const seen = used || new Set();
   const ids = new Set();
-  const shapes = new Set();
+  /* `taken` is the whole menu's recipes and not this level's, when the caller
+   * has one to give. Within a level was never enough: `Dm Dm G G` was Dorian
+   * Broth on the hand-written menu AND Half-Step Ragu invented beside it, two
+   * tickets that are one exercise. See `inventMenu`. */
+  const shapes = taken || new Set();
   for (let tries = 0; out.length < count && tries < count * 80; tries++) {
     const d = roll(level, rand, seen);
     if (!d || ids.has(d.id)) continue;
@@ -350,9 +466,12 @@ function drill(level, rand, used) {
   used.add(noun);
   const names = chords.map(label);
   const word = names.length === 2 ? names[0] + '-to-' + names[1] : names.join('-');
+  const dish = word + ' ' + noun;
+  if (used.has(dish)) return null;      // see the same guard in `roll`
+  used.add(dish);
   return {
     id: 'drl-' + level + '-' + chords.join('').replace(/#/g, 's') + '-' + family.id,
-    dish: word + ' ' + noun,
+    dish,
     steps,
     rn: '',
     level,
@@ -364,10 +483,10 @@ function drill(level, rand, used) {
 }
 
 /** `count` drills for `level`, none the same shape. */
-export function drills(level, rand, count, used) {
+export function drills(level, rand, count, used, taken) {
   const out = [];
   const seen = used || new Set();
-  const shapes = new Set();
+  const shapes = taken || new Set();     // the whole menu's recipes: see `inventMenu`
   for (let tries = 0; out.length < count && tries < count * 60; tries++) {
     const d = drill(level, rand, seen);
     if (!d) continue;
@@ -383,15 +502,22 @@ export function inventMenu(handWritten, seed, perLevel) {
   const n = perLevel === undefined ? 6 : perLevel;
   let s = (seed >>> 0) || 1;
   const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  /* The nouns already spoken for AND the whole names, so nothing invented is
+   * called what something on the menu is already called. */
   const used = new Set(handWritten.map((m) => m.dish.split(' ').pop()));
+  for (const m of handWritten) used.add(m.dish);
+  /* Every recipe already on the menu, hand-written ones included, carried
+   * through every level so nothing is invented twice and nothing is invented
+   * on top of something Pachelbel already wrote. */
+  const taken = new Set(handWritten.map((m) => m.steps.join(' ')));
   const out = handWritten.slice();
   /* Half as many drills as progressions at every tier, so the menu stays a
    * menu of progressions with the change drills around them — and the first
    * services stop opening on the same two chords. */
   const d = Math.max(1, Math.round(n / 2));
   for (let level = 1; level < BANDS.length; level++) {
-    out.push(...invent(level, rand, n, used));
-    out.push(...drills(level, rand, d, used));
+    out.push(...invent(level, rand, n, used, taken));
+    out.push(...drills(level, rand, d, used, taken));
   }
   return out;
 }

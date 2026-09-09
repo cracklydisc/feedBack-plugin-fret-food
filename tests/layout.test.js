@@ -22,7 +22,7 @@ import { paper, distinct, hits } from './paper.js';
 import { GEO, slotX } from '../src/art/geo.js';
 import { P } from '../src/art/pix.js';
 import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText, chipText } from '../src/art/hud.js';
-import { inventMenu } from '../src/invent.js';
+import { inventMenu, FAMILIES } from '../src/invent.js';
 import { wrap, measure } from '../src/art/font.js';
 import { chordSvg, barres, window_ } from '../src/art/chordsvg.js';
 import { diagram, CHORDS, label } from '../src/menu.js';
@@ -566,6 +566,27 @@ test('a one-line dish gets a shorter bubble than a two-line one', () => {
   const one = bubbleLayout({ name: 'Ada', stars: 5 }, 0, GEO, ['GELATO']);
   const two = bubbleLayout({ name: 'Ada', stars: 5 }, 0, GEO, ['THREE-CHORD', 'MARGHERITA']);
   assert.ok(two.h > one.h, 'the two-line bubble should be taller: ' + one.h + ' vs ' + two.h);
+});
+
+test('no noun the inventor can reach makes a name too long to draw', () => {
+  /* The test below draws the names of four seeds' menus, which finds a bad
+   * noun only when a seed's draw runs far enough down the pool to reach it.
+   * "Stracciatella" and "Tagliatelle" both sat there unreached until the menu
+   * grew and the noun pool started being exhausted, and then they walked out
+   * of the bubble in front of a player. Every noun, against the longest thing
+   * that can be put in front of it and the longest thing after. */
+  for (const family of FAMILIES) {
+    for (const noun of family.nouns) {
+      const dish = 'Up-the-Neck ' + noun + ' in Minor';
+      const { lines, font } = bubbleLines(dish, GEO);
+      assert.ok(lines.length <= 2, dish + ' needs ' + lines.length + ' lines');
+      const b = bubbleLayout({ name: longest(NAMES), stars: 5 }, 2, GEO, lines, font);
+      for (const l of b.lines) {
+        assert.ok(l.x >= b.x && l.x + l.w <= b.x + b.w,
+          '"' + noun + '" cannot be drawn: "' + l.s + '" runs out of the bubble');
+      }
+    }
+  }
 });
 
 test('a long invented name stays inside its bubble', () => {

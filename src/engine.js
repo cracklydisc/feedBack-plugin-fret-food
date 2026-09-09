@@ -445,6 +445,7 @@ export function createGame(opts) {
     misses: 0,
     stations: [],
     rough: 0,                  // chords named but not played cleanly: see `CLEAN`
+    recent: [],                // the last few recipes dealt: see `pickDishFresh`
     hand: null,            // the last shape the hand made
     lastChord: null,
     runOn: 0,              // consecutive strums on the same chord
@@ -651,6 +652,29 @@ export function createGame(opts) {
     const fresh = from.filter((m) => !onCounter.has(m.id));
     if (fresh.length) from = fresh;
 
+    /* 0b. and not one dealt in the last few tickets either.
+     *
+     *    Rule 0 only looks at what is on the counter RIGHT NOW, so a pot that
+     *    just went out could come straight back with the same recipe on it. On
+     *    a small tier that is most of what a player feels: "mi pare di
+     *    allenare quasi sempre lo stesso ordine di combinazione di accordi".
+     *
+     *    It is keyed on the RECIPE and not the id, because two dishes with
+     *    different food and the same chords are one exercise, which is the
+     *    same reason the inventor dedupes on recipes.
+     *
+     *    The memory is a third of the pool and never more than eight: a fixed
+     *    number would starve the Opening, whose whole deck is twenty cards,
+     *    and do nothing at all by Dinner where there are a hundred. And it is
+     *    a preference, never a filter — if it empties the deck the deck comes
+     *    back, because a repeat beats dealing nothing. */
+    const keep = Math.min(8, Math.floor(pool.length / 3));
+    if (keep > 0) {
+      const lately = new Set(S.recent.slice(-keep));
+      const unseen = from.filter((m) => !lately.has(m.steps.join(' ')));
+      if (unseen.length) from = unseen;
+    }
+
     // 1. never two long recipes at once.
     if (busy.some((s) => s.order.steps.length >= 6)) {
       const shorter = from.filter((m) => m.steps.length < 6);
@@ -698,8 +722,13 @@ export function createGame(opts) {
     const weight = (m) => (m.level === tier ? 5 : m.level === tier - 1 ? 3 : 2);
     const total = from.reduce((n, m) => n + weight(m), 0);
     let r = rand() * total;
-    for (const m of from) { r -= weight(m); if (r <= 0) return m; }
-    return from[from.length - 1];
+    let chosen = from[from.length - 1];
+    for (const m of from) { r -= weight(m); if (r <= 0) { chosen = m; break; } }
+    /* Written down for rule 0b. Trimmed to the largest memory any pool could
+     * ask for, so a service cannot grow a list as long as itself. */
+    S.recent.push(chosen.steps.join(' '));
+    if (S.recent.length > 8) S.recent.shift();
+    return chosen;
   }
 
   /**

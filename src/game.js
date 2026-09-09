@@ -303,7 +303,17 @@ async function start({ container, modifiers, sdk }) {
    * see `invent.js`. Six a tier on top of the twenty-three named ones — nine
    * with the signature menu unlocked — out of the same seed as everything
    * else, so two players on one seed get one service. */
-  const menu = inventMenu(MENU, wanted.seed, unlocked.has('signature') ? 9 : 6);
+  /* HOW MANY DISHES ARE INVENTED PER TIER, and it went from six to ten.
+   *
+   * A session said it was drilling the same handful of combinations: measured,
+   * the Opening had fourteen tickets between it and eleven distinct changes,
+   * and a service spends forty-five seconds there. Ten fills the Opening to
+   * twenty tickets and seventeen changes, and the whole menu from seventy-eight
+   * dishes to a hundred and eight. It stops at ten because that is where the
+   * measurement stops paying: at twelve the Opening has more tickets and NOT
+   * one more change in them — the tier's own shapes have run out of things to
+   * say, and past that the extra cards are variations of the same lesson. */
+  const menu = inventMenu(MENU, wanted.seed, unlocked.has('signature') ? 14 : 10);
   const game = createGame({ menu, levels: LEVELS, seed: wanted.seed, rules: rulesFor(ch, unlocked, slow) });
   const report = createReport(game, { seed: wanted.seed, profile: wanted.profile, input: wanted.source });
   const scene = createScene(container);

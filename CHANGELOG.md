@@ -104,6 +104,60 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **More on the menu, and more shapes of drill on it.** A session said it was
+  training the same handful of combinations over and over, and the count said
+  where: the Opening had **fourteen** tickets between it and eleven distinct
+  changes, and a service spends forty-five seconds there. Worse, **eleven of
+  those fourteen were the same silhouette** — `X X Y Y` — because the Opening's
+  band held every degree for exactly two steps. The chords varied; the drill
+  never did, and where the change FALLS is most of what a change drill is. So
+  the band holds for one step or two over three or four, which makes `C C G`,
+  `C G G` and `C C G G` out of one pair, and ten dishes are invented a tier
+  instead of six: the Opening now deals **twenty** tickets, and the whole menu
+  goes from seventy-eight dishes to a hundred and sixteen. Ten and not twelve
+  because that is where the measurement stops paying — at twelve the Opening
+  has more tickets and not one more change in them.
+  - **Thirty-seven patterns instead of eighteen**, and the ones that matter
+    most were missing entirely: `KEYS` gave most keys an `Isus4`, an `Iadd9`, a
+    `Vsus4` and a `V/3`, and **not one pattern used any of them**. Those shapes
+    reached a player only through the five dishes written by hand for them.
+    They are also the best drills on the neck — one finger moves and the hand
+    stays put. Reaching them evenly needed weighting and not just patterns:
+    `Iadd9` lives in one key where `I V vi IV` can be written in every key
+    there is, so an even draw over patterns is a very uneven draw over shapes.
+    Measured over forty seeds, Cadd9 reached an invented dish in 13 of them
+    and Gsus4 in 15; weighted, 21 and 26.
+  - **The last service was being invented out of one pattern.** Its band wants
+    six to eight steps with five to seven changes and holds nothing, so
+    nothing shorter than six degrees can land in it — and of the eighteen,
+    exactly one could: Canon. Seven long patterns join it, and a pattern that
+    cannot reach a band is now dropped from that band's deck instead of
+    wasting the roll, which is why the late tiers kept returning fewer dishes
+    than they were asked for.
+  - **Three dishes written by hand for the shapes that had none.** Gsus4, B and
+    G#m were on the neck with nothing on the menu asking for them — a diagram
+    nobody is ever sent to play. Dominant Suspense (`C G Gsus4 G`) is the one
+    place a sus4 is the point of the bar rather than decoration; Key-of-E Lungo
+    and Sharp-Minor Sformato are why B and G#m were added at all.
+  - **And no two dishes are the same any more.** Not the same recipe — `Dm Dm
+    G G` was Dorian Broth by hand AND Half-Step Ragu invented beside it, two
+    tickets that are one exercise, because the inventor deduped within a level
+    and not against the menu. Not the same name either: the noun pool is
+    picked over before it repeats, but a bigger menu exhausts it, and four
+    names in a hundred and sixteen came out identical. And two nouns are gone
+    that could not be DRAWN — "Stracciatella" and "Tagliatelle" made a name
+    that walked out of its bubble, on the seeds whose draw ran far enough down
+    the pool to reach them.
+  - **The dealer remembers the last few tickets.** It only ever checked what
+    was on the counter right now, so a pot that just went out could come
+    straight back with the same recipe on it. The memory is a third of the
+    pool and never more than eight — a fixed number would starve the Opening's
+    twenty cards and do nothing by Dinner's hundred — and it is a preference
+    and never a filter, because a repeat beats dealing nothing.
+
+  The bot's service is unchanged at 388 s against 394 s over twelve seeds:
+  this is variety, not difficulty.
+
 - **The ear overlay froze on the first chord it ever named, and said nothing
   about it.** A session with three dishes served and a combo of twelve had a
   plate reading `STRUMS 1 NAMED 0 COOKED 0` and `PLAY SOMETHING`. It was not

@@ -324,6 +324,15 @@ const DISHES = [
   { id: 'walking',    dish: 'Walking-Bass Focaccia', steps: ['G', 'G/B', 'C', 'G'],
     rn: 'V V/3 I V',           level: 2, pan: 'pizza',
     ingredients: ['dough', 'oil', 'salt', 'rosemary'] },
+  /* The suspension over the dominant: the one place a sus4 is not decoration
+   * but the whole point of the bar, and the last of the new shapes with no
+   * dish of its own. The inventor can voice `Vsus4` and does, but only in the
+   * keys that own it and only when the roll lands there — measured, a third
+   * of services never met a Gsus4 at all. A shape the neck teaches and the
+   * menu never asks for is a diagram nobody is sent to play. */
+  { id: 'suspense',   dish: 'Dominant Suspense',     steps: ['C', 'G', 'Gsus4', 'G'],
+    rn: 'I V Vsus4 V',         level: 2, pan: 'saucepan',
+    ingredients: ['butter', 'flour', 'cream', 'pepper'] },
   /* The whole F, at the tier of the first barre. `I+` is a degree no key
    * table has, on purpose: voiced into another key this dish would lose the
    * one thing it is for. */
@@ -383,6 +392,16 @@ const DISHES = [
   { id: 'sformato',   dish: 'Up-the-Neck Sformato',  steps: ['C#m', 'A', 'E', 'B7'],
     rn: 'vi IV I V7',          level: 6, pan: 'roasting',
     ingredients: ['potato', 'cheese', 'butter', 'thyme'] },
+  /* The key of E, which the neck could not finish until B and G#m existed.
+   * Both shapes are up the neck and neither had a dish: `sformato` asks for a
+   * B7 and that is a different hand. These two are why those shapes were
+   * added, and without them the menu taught a fingering it never set. */
+  { id: 'lungo',      dish: 'Key-of-E Lungo',        steps: ['E', 'B', 'C#m', 'A'],
+    rn: 'I V vi IV',           level: 6, pan: 'saucepan',
+    ingredients: ['water', 'sugar', 'cream', 'vanilla'] },
+  { id: 'sharpmin',   dish: 'Sharp-Minor Sformato',  steps: ['E', 'G#m', 'A', 'B'],
+    rn: 'I iii IV V',          level: 6, pan: 'roasting',
+    ingredients: ['cheese', 'ricotta', 'butter', 'thyme'] },
   { id: 'affogato',   dish: 'E-Flat Affogato',       steps: ['Eb', 'Bb', 'F', 'Bb'],
     rn: 'IV I V I',            level: 6, pan: 'bowl',
     ingredients: ['cream', 'sugar', 'chocolate', 'cherry'] },

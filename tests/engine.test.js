@@ -14,7 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, RULES, handCost, scoreOf } from '../src/engine.js';
-import { MENU, LEVELS, dist, price, changes, chordLevel, label } from '../src/menu.js';
+import { MENU, LEVELS, dist, price, changes, chordLevel, chordsUpTo, label } from '../src/menu.js';
 import { cook, dish, dishDuration } from '../src/input/scripted.js';
 import { STEP_MS } from '../src/clock.js';
 import { createFlaws } from '../src/input/flaws.js';
@@ -856,9 +856,25 @@ test('the drills are two or three shapes in a random order, named for their chan
     assert.equal(d.price, price(d.steps));
     assert.equal(d.ingredients.length, d.steps.length);
   }
-  // Tier one drills reach the open shapes that used to wait until minute three.
-  const early = ds.filter((d) => d.level === 1).flatMap((d) => d.steps);
-  assert.ok(early.some((c) => ['Em', 'D'].includes(c)), 'the first tier drills the open shapes: ' + [...new Set(early)].join(' '));
+  /* Tier one drills reach every open shape the tier has, including the ones
+   * that used to wait until minute three.
+   *
+   * Over several seeds and not one, because a tier gets a handful of drills
+   * out of six shapes and any single seed can miss one by the shuffle. This
+   * was written against seed 11 alone and went red the day the inventor's
+   * deck changed — not because the generator had stopped reaching those
+   * shapes, but because that seed's three cards fell differently. A test that
+   * fails on the shuffle is a test nobody trusts, and the property worth
+   * holding was never about seed 11. */
+  const reached = new Set();
+  for (const seed of [3, 7, 11, 42]) {
+    for (const d of inventMenu(MENU, seed, 6)) {
+      if (d.drill && d.level === 1) for (const c of d.steps) reached.add(c);
+    }
+  }
+  for (const c of chordsUpTo(1)) {
+    assert.ok(reached.has(c), 'no tier one drill ever reaches ' + c + ': ' + [...reached].join(' '));
+  }
 });
 
 test('only the guitar scores: the keyboard and the script report nothing', () => {

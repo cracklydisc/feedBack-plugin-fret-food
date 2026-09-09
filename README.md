@@ -69,6 +69,13 @@ starts printing the fret it begins at. A four-chord dish of C Am F G is long; a
 three-chord dish of Bb F C is hard, and until the shapes had a level of their
 own the game had no way to say so.
 
+The menu is **a hundred and sixteen dishes**: twenty-eight written by hand,
+because Canon Cannoli is Pachelbel and Twelve-Bar Beans is a twelve-bar blues
+and no generator was going to come up with those, and the rest invented from a
+key and a pattern of degrees. Ten a tier, which is where the measurement stops
+paying: past that the Opening gets more tickets and not one more change in
+them. No two dishes share a recipe, or a name.
+
 The shapes come first, and the pans after. The whole ladder of shapes is
 climbed on the opening's two pans, one tier a service — the partial F at Lunch,
 the sevenths at Lunch Rush, the first barre at Afternoon, the full barres at
