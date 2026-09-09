@@ -235,6 +235,27 @@ export const RULES = {
   CHAIN_MAX: 5,
   SOOT_MAX: 3,
   RUSH_COST: 3,            // from this distance up, a rushed change comes out dirty
+  /*
+   * HOW CLEAN A CHORD HAS TO BE TO COOK AT ALL.
+   *
+   * A chord the ear named but scored under this used to cook the step anyway
+   * and take a mark of soot for it — the right answer while the ear was the
+   * weak link, because a muted string the DETECTOR imagined would have cost
+   * the player a star they had earned. With the engine's ML detector armed
+   * the naming is precise, and a session asked for the other rule: "ora che il
+   * riconoscimento è preciso direi o passa o no, così devi imparare a suonarli
+   * puliti."
+   *
+   * So under this the strum does nothing at all: it cooks no step, charges no
+   * miss and touches no state, and the pot going on draining is the whole of
+   * the punishment. It is deliberately not a strike — the ear can still be
+   * wrong about HOW WELL something was played even when it is right about
+   * what, and a drill that takes a life for that stops being one.
+   *
+   * 0.8 is the number that used to cost a star, kept so the bar is where a
+   * player already knew it was. Soot is now only ever late.
+   */
+  CLEAN: 0.8,
   TIP: 1.25,               // served with no soot at all
   STRIKES: 3,
   /* How many places the counter may grow to, whatever the level table says.
@@ -273,7 +294,29 @@ export const RULES = {
   LOOP: false,
   LOOP_TARGET: null,
   TIME_LIMIT_MS: 0,
-  LEVEL_MS: 60000,
+  /* HOW LONG A SERVICE LASTS, and it sets the pace of everything the table
+   * deals out: a tier of shapes or a place, one per bell, nine bells.
+   *
+   * It was a minute, and measured against a player that put the whole second
+   * half of the ladder past where their runs end. The bells, with the pans
+   * arriving last because the shapes come first (see `LEVELS`):
+   *
+   *     tier 6 at 5:00 | 3rd pan 6:00 | 4th 7:00 | 5th 8:00
+   *
+   * A session's own runs ended at Happy Hour and Late Dinner — levels 5 and 7
+   * — so a third pan was something that mostly did not happen: "il terzo
+   * bruciatore in questa configurazione esce fuori molto tardi, ho giocato
+   * almeno 10-15 minuti e non era ancora uscito". At forty-five seconds the
+   * same nine bells read:
+   *
+   *     tier 6 at 3:45 | 3rd pan 4:30 | 4th 5:15 | 5th 6:00
+   *
+   * which puts the whole counter inside a run that a player who dies at Late
+   * Dinner is already having. The cost is honest and worth stating: the bot's
+   * service on five pans goes from 560 s to 437 s over twelve seeds, because
+   * the flames step up a quarter sooner too. The run is shorter in minutes
+   * and longer in what it contains, which is the trade that was asked for. */
+  LEVEL_MS: 45000,
   /* How long the counter waits before it grows another place.
    *
    * The service used to open with three burners already lit, which is three
@@ -282,7 +325,7 @@ export const RULES = {
    * every half minute until the level's own count is reached, so the counter
    * grows in front of you instead of arriving. The level table still says how
    * many places a level ends with; this says how fast it gets there. */
-  OPEN_MS: 30000,
+  OPEN_MS: 22000,         // half a service, as it always was: see `LEVEL_MS`
   /* How long a place stays shut after a dish leaves it, and it is a beat of
    * the game rather than a pause between two of them: the dish flies to the
    * plate, the customer EATS it a piece at a time and then gets up. 1400 was
@@ -401,6 +444,7 @@ export function createGame(opts) {
     hits: 0,
     misses: 0,
     stations: [],
+    rough: 0,                  // chords named but not played cleanly: see `CLEAN`
     hand: null,            // the last shape the hand made
     lastChord: null,
     runOn: 0,              // consecutive strums on the same chord
@@ -768,6 +812,18 @@ export function createGame(opts) {
     // the bench's ' ') is not a chord and opens nothing: nobody has played yet.
     if (chord !== null && chord !== undefined && chord !== ' ') open();
     const q = quality === undefined ? 1 : quality;
+    /* NOT CLEAN ENOUGH: see `CLEAN`. Nothing cooks, nothing is charged and no
+     * state moves — not even the hand, because a chord that did not come out
+     * is not a shape the hand can be said to have made, and measuring the next
+     * change from it would take the grace off a change nobody played. Checked
+     * before the counter is even looked at, so a rough reading of a chord
+     * nobody wants is not a miss either: the ear can be sure of WHAT and
+     * unsure of HOW WELL, and only the second is in doubt here. */
+    if (chord !== null && chord !== undefined && chord !== ' ' && q < R.CLEAN) {
+      S.rough++;
+      emit('rough', { chord, quality: q });
+      return { ok: false, why: 'not clean' };
+    }
     const targets = S.stations.filter((st) => st.order && wants(st) === chord);
 
     if (!targets.length) {
@@ -842,7 +898,8 @@ export function createGame(opts) {
       if (st.cookedChord === chord && S.t - (st.cookedAt || -1e9) < R.STEP_GAP_MS) continue;
       const line = Math.max(0, R.READY - handCost(S.hand, chord) * R.FINGER_GRACE);
       const late = st.heat < line;
-      if (late || q < 0.8) st.soot = Math.min(R.SOOT_MAX, st.soot + 1);
+      // Only late. How well it was played is settled above, at `CLEAN`.
+      if (late) st.soot = Math.min(R.SOOT_MAX, st.soot + 1);
       else if (st.soot > 0) st.soot--;
       if (late) { S.spoiled++; lateOnes.push(st.i); }
       st.heat = R.HEAT_FULL;
@@ -866,7 +923,10 @@ export function createGame(opts) {
     S.lastChord = chord;
     S.lastHitAt = S.t;
     S.lastEventAt = S.t;
-    const dirty = cooked.some((st) => st.soot > 0 && st.heat === R.HEAT_FULL && q < 0.8);
+    /* Whether this strum cooked something DIRTY, which is now only ever a pot
+     * that was under the line when it landed: the smoke and the shake belong
+     * to that, and a chord played roughly never reaches here at all. */
+    const dirty = lateOnes.length > 0;
     emit('strum', { chord, stations: targets.map((s) => s.i), dirty, together: targets.length });
 
     if (cooked.length) {

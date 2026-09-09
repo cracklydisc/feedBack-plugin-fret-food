@@ -74,7 +74,12 @@ climbed on the opening's two pans, one tier a service — the partial F at Lunch
 the sevenths at Lunch Rush, the first barre at Afternoon, the full barres at
 Happy Hour, the neck at Dinner — and only then does the counter grow, one place
 a service: three pans at Late Dinner, four on Saturday Night, five at Closing
-Time. Nine services of a minute each. This is a chord-change drill, and what a
+Time. Nine services of **forty-five seconds** each — the last tier of shapes at
+3:45, the third pan at 4:30, the whole counter at 6:00. They were a minute, and
+measured against a real player that put the pan half of the ladder past where
+runs end: a session played at three pans and never once saw the third. A tier
+or a pan dealt out past the end of a service is content nobody meets. This is a
+chord-change drill, and what a
 novice has to get good at is the changes: a third pot before the neck is done
 teaches juggling instead. The second pan stays through the ladder because two
 pots wanting one chord is the one greedy play, and because a round trip has to
@@ -529,10 +534,20 @@ well they fitted. It is the only way to tell a strum the detector never
 reported from a chord this code named wrongly, and those two have different
 owners.
 
-The fit becomes the strum's `quality`, and the game already treats quality
-under 0.8 as a dirty strum that leaves soot. "How cleanly it came out" and
-"how much of the chord was really there" turn out to be the same number, so
-nothing new had to be invented to make a half-played chord cost the tip.
+The fit becomes the strum's `quality`, and **under `RULES.CLEAN` (0.8) the
+strum cooks nothing at all**. It used to cook the step and take a mark of soot
+for it, which was the right bargain while the ear was the weak link: a muted
+string the DETECTOR imagined would have cost a star that was really earned.
+With the engine's ML detector armed the naming is precise, and the rule a
+session asked for is the other one — *o passa o no, così devi imparare a
+suonarli puliti*. Soot is now only ever LATE.
+
+It is deliberately not a strike, and not a miss either. The ear can be right
+about WHAT was played and wrong about how well, so the pot going on draining is
+the whole of the punishment, and the check happens before the counter is even
+looked at. The overlay counts it as `MUDDY` beside `UNNAMED` — the hand failing
+next to the ear failing — and the closing card carries the same number, because
+a threshold you cannot see from the chair is one nobody can tell you is wrong.
 
 It needs the **desktop app** — the scorer lives in the native engine. In a
 browser or the dev server the adapter says so through `status { ready: false }`

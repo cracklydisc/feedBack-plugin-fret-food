@@ -270,6 +270,11 @@ export function createReport(game, opts) {
         spoiled: S.spoiled,
         hits: S.hits,
         misses: S.misses,
+        /* Chords named right and played too roughly to cook: the count that
+         * says whether `RULES.CLEAN` is set where this guitar and this room
+         * can reach. It is the one number that would say the bar is too high,
+         * and without it the threshold is invisible from the chair. */
+        rough: S.rough,
         /* What share of the steps cooked came out CLEAN.
          *
          * It used to be cooked cycles over rests — how often the right gesture

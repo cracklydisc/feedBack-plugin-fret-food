@@ -136,7 +136,8 @@ export function stampa(r) {
   out.push(row('served', r.served + '   lost ' + r.ruined + '   with a tip ' + pct(r.tipRatio)));
   out.push(row('steps cooked', r.cycles + '   clean ' + (r.cleanSteps === undefined ? '' : r.cleanSteps + ' ') + '(' + pct(r.cleanRatio) + ')'));
   out.push(row('slowest changes', (r.slowest || []).map((c) => c.from + '-' + c.to + ' ' + (c.ms / 1000).toFixed(1) + 's x' + c.n).join('   ') || '—'));
-  out.push(row('strums', r.hits + '   on nobody ' + r.misses + ' (' + pct(r.missRatio) + ')'));
+  out.push(row('strums', r.hits + '   on nobody ' + r.misses + ' (' + pct(r.missRatio) + ')'
+    + '   too muddy to cook ' + (r.rough || 0)));
   out.push('');
   out.push(row('hits per step', Object.keys(r.hitsPerStep)
     .map((k) => 'lv ' + k + ': ' + (r.hitsPerStep[k] === null ? '—' : r.hitsPerStep[k].toFixed(1)))

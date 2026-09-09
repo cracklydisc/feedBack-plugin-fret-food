@@ -16,10 +16,18 @@
  * ── REAL NUMBERS, measured on twelve seeds (1 2 3 5 7 11 13 17 23 42 77 99) ─
  *
  *   profile        duration   level   clean   cash     (seed 7)
- *   perfect        596 s      10      0.92    69,400
- *   latency-only   549 s      10      0.97    60,390
- *   real           532 s       9      0.96    55,836
- *   worst          501 s       9      0.96    42,038
+ *   perfect        477 s      11      0.91    57,088
+ *   latency-only   438 s      10      0.96    50,370
+ *   real           400 s       9      0.93    31,300
+ *   worst          326 s       8      0.96    20,284
+ *
+ * Those last moved together, on one session's two asks. The services are
+ * FORTY-FIVE seconds instead of sixty (`LEVEL_MS`), so every service is a
+ * quarter shorter in minutes and reaches a higher level in them — read the
+ * duration and the level columns as one number, not two. And a chord named
+ * right but played roughly now cooks NOTHING instead of cooking with a mark
+ * of soot (`CLEAN`), which is most of what took the takings down: the flawed
+ * profiles play a lot of rough chords, and rough chords used to still pay.
  *
  * Those are a long way from the first set this table held, which was measured
  * when the ladder was six services and the flames climbed through all of
@@ -56,6 +64,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { runGame } from '../tools/run.mjs';
 import { sha256 } from '../src/report.js';
+import { createGame } from '../src/engine.js';
+import { MENU, LEVELS } from '../src/menu.js';
+import { inventMenu } from '../src/invent.js';
 
 /* The seeds are not chosen on the result: they are the ones the rest of the
  * project already uses (7 is the bench default, 42 the one in `newGame`, 11 the
@@ -69,6 +80,62 @@ const says = (r) => 'seed ' + r.seed + ': ' + (r.durationMs / 1000).toFixed(0) +
   + ', clean ' + r.cleanRatio.toFixed(2) + ', on nobody ' + r.missRatio.toFixed(3) + ', cash ' + r.cash;
 
 // ── with the perfect detector ────────────────────────────────────────────
+
+/**
+ * WHEN THE KITCHEN CHANGES SHAPE, on the clock and with nobody playing.
+ *
+ * No player at all: the clock runs, the bells ring, and the times are written
+ * down. It is the one measurement that says whether the ladder FITS inside a
+ * service somebody actually has — a tier or a pan dealt out past where runs
+ * end is content nobody meets.
+ */
+function bells(cap) {
+  const g = createGame({
+    menu: inventMenu(MENU, 7, 6),
+    levels: LEVELS,
+    seed: 7,
+    rules: { STRIKES: 999, MAX_STATIONS: cap },
+  });
+  const at = {};
+  g.on('place', (e) => { if (at['pan' + e.stations] === undefined) at['pan' + e.stations] = g.state.t; });
+  g.on('level', (e) => {
+    const now = LEVELS[e.level - 1];
+    const before = LEVELS[e.level - 2];
+    if (now && before && now.shapes > before.shapes && at['tier' + now.shapes] === undefined) {
+      at['tier' + now.shapes] = g.state.t;
+    }
+  });
+  g.open();
+  for (let t = 0; t < 700000; t += 100) g.tick(100);
+  return at;
+}
+
+test('the whole ladder is dealt inside a service somebody actually plays', () => {
+  /* A session played the counter at three pans and never saw the third:
+   * "il terzo bruciatore in questa configurazione esce fuori molto tardi, ho
+   * giocato almeno 10-15 minuti e non era ancora uscito". It arrived at six
+   * minutes, and that session's own runs ended at Happy Hour and Late Dinner,
+   * levels 5 and 7 — so the pan half of the ladder sat past where the game
+   * ends for the player it is written for.
+   *
+   * The bands below are what `LEVEL_MS` buys, and they are the reason to
+   * think twice before moving it: everything the table deals out is on this
+   * one clock. */
+  const five = bells(5);
+  assert.equal(five.tier6, 225000, 'the last tier of shapes, at three and three quarter minutes');
+  assert.equal(five.pan3, 270000, 'the third pan at four and a half');
+  assert.equal(five.pan5, 360000, 'and the full counter at six');
+  /* The order is the design and not an accident of the numbers: every shape
+   * in the game is in the hand before the counter starts to grow. See the note
+   * over `LEVELS`. */
+  assert.ok(five.tier6 < five.pan3, 'the shapes are all dealt before the pans start');
+
+  // Choosing fewer pans does not move the shapes: the ladder is the ladder.
+  const three = bells(3);
+  assert.equal(three.tier6, five.tier6);
+  assert.equal(three.pan3, five.pan3);
+  assert.equal(three.pan4, undefined, 'and the counter stops where the player asked');
+});
 
 test('with the perfect detector the bot holds up to level 4 and never plays on nobody', () => {
   for (const seed of SEEDS) {

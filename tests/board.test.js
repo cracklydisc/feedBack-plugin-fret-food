@@ -93,13 +93,16 @@ test('stars are the soot and nothing else, so they agree with the tip', () => {
   const { game, st } = onePot({ steps: ['C', 'Am', 'C', 'Am', 'C'], burner: 2.4 });
   assert.equal(game.snapshot().stations[0].stars, RULES.STARS, 'a clean pot is worth full marks');
 
-  game.strum('C', 0.6);                            // scored badly: one soot
+  /* Soot is being LATE, and nothing else: a chord played roughly cooks no step
+   * at all now, so it can never reach the pot to mark it. See `CLEAN`. */
+  const late = (chord) => { st.heat = 10; game.strum(chord); };
+  late('C');
   assert.equal(st.soot, 1);
   assert.equal(game.snapshot().stations[0].stars, RULES.STARS - 1);
 
-  game.strum('Am', 0.6);
-  game.strum('C', 0.6);
-  game.strum('Am', 0.6);                           // soot caps
+  late('Am');
+  late('C');
+  late('Am');                                      // soot caps
   assert.equal(st.soot, RULES.SOOT_MAX);
   assert.equal(game.snapshot().stations[0].stars, RULES.STARS - RULES.SOOT_MAX,
     'the worst dish still gets some stars, because zero reads as broken');

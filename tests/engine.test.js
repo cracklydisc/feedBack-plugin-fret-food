@@ -84,14 +84,24 @@ test('a change that moves more fingers is given more room', () => {
   assert.equal(far.st.soot, 0, 'three fingers, and the same wait is not');
 });
 
-test('a chord the ear scored badly cooks, and spoils', () => {
-  /* The other thing the ear CAN measure: how well the chord matched. A
-   * fumbled shape that still reads as the right chord moves the recipe on and
-   * costs the dish, which is the same bargain as being late. */
+test('a chord the ear scored badly cooks nothing at all', () => {
+  /* It used to cook the step and take a mark of soot for it, which was the
+   * right bargain while the ear was the weak link: a muted string the DETECTOR
+   * imagined would have cost a star that was actually earned. With the
+   * engine's ML detector armed the naming is precise, and a session asked for
+   * the other rule — "ora che il riconoscimento è preciso direi o passa o no,
+   * così devi imparare a suonarli puliti". */
   const { game, st } = onePot({ steps: ['C', 'Am', 'Dm'], burner: 2.4 });
-  game.strum('C', 0.5);
-  assert.equal(st.step, 1, 'it was the right chord, so the step cooked');
-  assert.equal(st.soot, 1, 'but it was not played cleanly');
+  const rough = [];
+  game.on('rough', (e) => rough.push(e));
+  const r = game.strum('C', 0.5);
+  assert.equal(r.ok, false);
+  assert.equal(st.step, 0, 'the recipe has not moved');
+  assert.equal(st.soot, 0, 'and nothing was charged for it: the pot draining is the whole of it');
+  assert.equal(game.state.misses, 0, 'a muddy chord is not a wrong chord, and takes no strike');
+  assert.deepEqual(rough.map((e) => e.chord), ['C'], 'but the screen is told why nothing moved');
+  game.strum('C', 1);
+  assert.equal(st.step, 1, 'and the same chord played cleanly cooks');
 });
 
 test('a chord nobody wants cooks nothing and is a miss', () => {
@@ -178,10 +188,12 @@ test('served with no soot, the tip shows in the money', () => {
   assert.equal(s.money, Math.round(12 * s.chain * RULES.TIP));
 });
 
-test('a dirty chord leaves soot, and soot costs life', () => {
+test('a late chord leaves soot, and soot costs life', () => {
+  /* Soot is only ever LATE now: how well a chord was played is settled at
+   * `CLEAN`, before anything cooks. */
   const { game, st } = onePot({ burner: 2.4, heat: 50 });
   const lifeBefore = game.life(st, false);
-  game.strum('C', 0.6);                    // ratio under 0.8: dirty
+  game.strum('C');                         // the pot is under the line: late
   assert.equal(st.soot, 1, 'one soot');
   assert.ok(game.life(st, false) < lifeBefore + 3, 'the soot eats the life that was gained');
 });
@@ -547,7 +559,8 @@ test('eight clean dishes in a row win a lost customer back', () => {
   // which is the engine's own rule and not this test's business.
   for (let k = 0; k < 4; k++) serveClean();
   assert.equal(game.state.tipRun, 4);
-  game.strum('C'); game.strum('Am', 0.5); step(game, 600);   // served with soot: no tip
+  // Under the line on the last step, which is what soot is now: see `CLEAN`.
+  game.strum('C'); game.state.stations[0].heat = 10; game.strum('Am'); step(game, 600);
   assert.equal(game.state.tipRun, 0, 'a spoiled dish breaks the run');
   assert.equal(game.state.strikes, 1);
 

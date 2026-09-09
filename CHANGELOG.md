@@ -104,6 +104,40 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **The ladder is dealt inside a service somebody actually plays.** A session
+  played the counter at three pans and never saw the third: "il terzo
+  bruciatore in questa configurazione esce fuori molto tardi, ho giocato almeno
+  10-15 minuti e non era ancora uscito". Measured, it arrived at **six
+  minutes** — and that session's own runs ended at Happy Hour and Late Dinner,
+  levels 5 and 7, so the pan half of the ladder sat past where the game ends
+  for the player it is written for. A service is forty-five seconds now instead
+  of sixty, which moves everything the level table deals out on the one clock
+  it all hangs from: the last tier of shapes goes from 5:00 to **3:45**, the
+  third pan from 6:00 to **4:30**, the whole counter from 8:00 to **6:00**. The
+  order is untouched — every shape is in the hand before the counter starts to
+  grow — and so is the rule that a bell either unlocks a tier or adds a place,
+  never both. The cost is worth stating: the bot's service on five pans goes
+  from 560 s to 437 s over twelve seeds, because the flames step up a quarter
+  sooner too. Shorter in minutes, longer in what it contains. There is a test
+  on the arrival times now, so the next hand on `LEVEL_MS` knows what it is
+  holding.
+- **A chord played badly cooks nothing, instead of cooking with a mark of
+  soot.** It used to pass and cost a star, which was the right bargain while
+  the ear was the weak link — a muted string the DETECTOR imagined would have
+  taken a star that was really earned. With the engine's ML detector armed the
+  naming is precise, and the rule a session asked for is the other one: "ora
+  che il riconoscimento è preciso direi o passa o no, così devi imparare a
+  suonarli puliti". Under `RULES.CLEAN` (0.8, the number that used to cost the
+  star) the strum cooks no step, charges no miss and moves no state — not even
+  the hand, because a chord that did not come out is not a shape the hand can
+  be said to have made. Deliberately not a strike: the ear can be right about
+  WHAT was played and wrong about how well, and a drill that takes a life for
+  that stops being one; the pot going on draining is the whole of it. Soot is
+  now only ever late. The screen says `MUDDY` over the guitar and explains
+  itself once, the overlay counts it beside `UNNAMED` — the hand failing next
+  to the ear failing — and the closing card carries the same number, because a
+  threshold nobody can see from the chair is one nobody can tell you is wrong.
+
 - **F is F, whichever way the hand plays it.** The card prints F for both
   fingerings — that is what `SHAPES['F+'].show` is for — and a player who is
   not a beginner reads F and plays the whole barre `133211`, because it is an

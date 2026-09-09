@@ -67,7 +67,7 @@ const VERSION = '0.1.0';
 
 /* Every event the scene can animate. Forwarded verbatim: the scene decides what
  * is worth a flourish, and this file does not get an opinion. */
-const EVENTS = ['seat', 'strum', 'miss', 'open', 'cycle', 'step', 'serve', 'ruin', 'redeem', 'perfect', 'level', 'chainLost', 'over'];
+const EVENTS = ['seat', 'strum', 'miss', 'rough', 'open', 'cycle', 'step', 'serve', 'ruin', 'redeem', 'perfect', 'level', 'chainLost', 'over'];
 
 /* The sprint: three minutes from the first chord. The modes themselves are
  * the options plate's rows (`options.js`); what each does to the rules is
@@ -448,6 +448,7 @@ async function start({ container, modifiers, sdk }) {
       case 'serve': sfx.served(e.tip); break;
       case 'ruin': sfx.lost(); break;
       case 'miss': sfx.miss(); break;
+      case 'rough': sfx.miss(); break;
       case 'level': sfx.level(); break;
       case 'redeem': sfx.redeem(); break;
       case 'open': sfx.open(); break;
@@ -524,7 +525,11 @@ async function start({ container, modifiers, sdk }) {
         + ' - ' + String(s.road || label).toUpperCase()
         + (s.why ? ' (' + String(s.why).toUpperCase() + ')' : '')
         + ' - STRUMS ' + (s.onsets || 0) + ' COOKED ' + (s.named || 0)
-        + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0),
+        + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0)
+        /* Named right, played too roughly to cook (`RULES.CLEAN`). It sits
+         * beside UNNAMED on purpose: the two are the ear failing and the hand
+         * failing, and telling them apart is the whole use of this line. */
+        + ' MUDDY ' + (game.state.rough || 0),
     ];
     const rows = (s.last || []).map((r) => {
       const air = r.air && r.air.length ? r.air.join('  ') : 'THE ENGINE ANSWERED NOTHING';

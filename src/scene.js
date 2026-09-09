@@ -1724,6 +1724,18 @@ export function createScene(container) {
         missAt = t;
         bursts.push({ x: gx, y: gy, t0: t, dur: 260, color: P.smoke });
         break;
+      /* The right chord, not cleanly enough played to cook. It looks like a
+       * miss on purpose — nothing happened — but it is named over the guitar,
+       * because "I played the right one and nothing moved" is the one thing a
+       * player cannot work out from an empty pot. */
+      case 'rough':
+        missAt = t;
+        bursts.push({ x: gx, y: gy, t0: t, dur: 260, color: P.smoke });
+        floats.push({ text: 'MUDDY', x: gx, y: gy - 14, t0: t, dur: 900, color: P.smoke, font: 'S' });
+        tip('muddy', ['THE RIGHT CHORD, NOT CLEANLY PLAYED',
+          'A MUTED OR BUZZING STRING COOKS NOTHING AT ALL',
+          'LET EVERY STRING RING AND PLAY IT AGAIN']);
+        break;
       case 'open':
         // The first chord: the kitchen is lit, and the strip's line changes
         // from an invitation to the rule. A word over the pass marks the moment.
