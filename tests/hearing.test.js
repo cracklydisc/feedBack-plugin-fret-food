@@ -159,9 +159,13 @@ function fakeBridge(o) {
     level: 0,
     air: [],
     strike: 0,
+    asked: [],
     calls: { detectNotes: 0, scoreChord: 0 },
     async getLevels() { return { inputLevel: this.level }; },
-    async isMlNoteDetection() { return opt.ml !== false; },
+    async isMlNoteDetection() {
+      if (opt.ml === 'unknown') throw new Error('too old to be asked');
+      return opt.ml !== false;
+    },
     async detectNotes() {
       this.calls.detectNotes++;
       // `onsetSeq` counts how many times THAT pitch has been struck. The
@@ -171,6 +175,7 @@ function fakeBridge(o) {
     },
     async scoreChord(req) {
       this.calls.scoreChord++;
+      this.asked.push(req);
       const sig = req.notes.map((n) => n.s + ':' + n.f).join(',');
       const name = Object.keys(SHAPES).find((c) => {
         const s = SHAPES[c];
@@ -347,5 +352,71 @@ test('a chord left ringing when the service opens is not a strum', () => {
     b.adapter.start();
     for (let k = 0; k < 6; k++) await b.poll(0.01, 48);
     assert.equal(b.strums.length, 0, 'a level that never rises is nobody playing');
+  })();
+});
+
+test('with the engine s model loaded, the chord is scored the way the app scores a chord', () => {
+  /* `scoreChord` has two scorers behind it: with the Basic Pitch model
+   * loaded it judges each note against the ML detector's active pitch set,
+   * and without it a constraint scorer over spectral bands that `notedetect`
+   * itself documents as false-positiving on a neighbour's bleed. We forced
+   * the second one on every call, copied from a game that asks about one
+   * shape. `notedetect` sends that flag for single notes and NOT for chords,
+   * and a chord is what this game asks about. */
+  return (async () => {
+    const withMl = bench({ ml: true, candidates: ['C'], scores: { C: 0.9 } });
+    // No detectNotes on this build, so it is the shapes road with the model behind it.
+    withMl.bridge.detectNotes = undefined;
+    withMl.adapter.start();
+    await withMl.poll(0.01);
+    await withMl.poll(0.01);
+    await withMl.poll(0.6);
+    assert.equal(withMl.adapter.stats.road, 'shapes');
+    assert.ok(withMl.bridge.asked.length > 0, 'it asked the engine about some shapes');
+    for (const req of withMl.bridge.asked) {
+      assert.equal(req.bypassMl, undefined, 'the ML scorer must not be bypassed when there is one');
+      assert.equal(req.harmonicVerify, undefined);
+      assert.ok(Number.isFinite(req.pitchCheckCents), 'the ear still rides along');
+    }
+
+    const noMl = bench({ ml: false, candidates: ['C'], scores: { C: 0.9 } });
+    noMl.adapter.start();
+    await noMl.poll(0.01);
+    await noMl.poll(0.01);
+    await noMl.poll(0.6);
+    assert.ok(noMl.bridge.asked.length > 0);
+    for (const req of noMl.bridge.asked) {
+      assert.equal(req.bypassMl, true, 'with no model there is nothing to choose, and the comb hears a strum');
+      assert.equal(req.harmonicVerify, true);
+    }
+  })();
+});
+
+test('the overlay says which road and why it is not the other one', () => {
+  return (async () => {
+    const no = bench({ candidates: ['C'] });
+    no.bridge.detectNotes = undefined;
+    no.adapter.start();
+    await no.poll(0.01);
+    await no.poll(0.01);
+    await no.poll(0.6);
+    assert.equal(no.adapter.stats.road, 'shapes');
+    assert.match(no.adapter.stats.why, /detectnotes/);
+
+    const off = bench({ ml: false, candidates: ['C'] });
+    off.adapter.start();
+    await off.poll(0.01);
+    await off.poll(0.01);
+    await off.poll(0.6);
+    assert.equal(off.adapter.stats.road, 'shapes');
+    assert.equal(off.adapter.stats.why, 'ml off');
+
+    const good = bench({ candidates: ['C'] });
+    good.adapter.start();
+    await good.poll(0.01);
+    await good.poll(0.01);
+    await good.poll(0.6);
+    assert.equal(good.adapter.stats.road, 'notes');
+    assert.equal(good.adapter.stats.why, '');
   })();
 });

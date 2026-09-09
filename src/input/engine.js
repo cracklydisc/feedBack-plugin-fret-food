@@ -137,17 +137,40 @@ const SETTLE_MS = 55;
 
 const POLL_MS = 16;        // about sixty a second, like the game itself
 
-/* What the engine is asked for. `bypassMl` + `harmonicVerify` select the DSP
- * harmonic-comb verifier, which is the mode that actually detects a STRUMMED
- * chord: the plain energy/band check returns almost nothing for one. Not ours,
- * measured, kept verbatim. */
-const SCORE_MODE = {
+/*
+ * WHAT THE ENGINE IS ASKED FOR, AND THE FLAG THAT WAS WRONG.
+ *
+ * `scoreChord` has two scorers behind it. With the Basic Pitch model loaded
+ * the native side judges each note against the ML detector's ACTIVE PITCH
+ * SET — a wrong note is simply absent from it. Without the model it runs a
+ * constraint scorer over spectral bands, which `notedetect`'s own README says
+ * "false-positives on a neighbour's energy-band bleed".
+ *
+ * `bypassMl: true` forces the second one. We sent it on every call, copied
+ * from Strum Fighter, and a session with a guitar reported exactly what the
+ * band scorer is documented to do: chords that would not register and false
+ * positives on their neighbours.
+ *
+ * `notedetect` sends that flag too — but only for SINGLE notes and for its
+ * verify target, and its comment says why: "the onset-driven ML path silently
+ * drops fast notes". For a CHORD it sends neither flag and lets the engine
+ * choose, and its comment says why that too: "the native scorer is ML-backed
+ * when a model is loaded... and it times chords correctly". A chord is what
+ * this game asks about, so it asks the way the app asks.
+ *
+ * With no model loaded there is nothing to choose between, and the harmonic
+ * comb is still the mode that hears a strum at all, so the old payload stands
+ * there. `road()` decides which, once.
+ */
+const SCORE_BASE = {
   arrangement: 'guitar',
   stringCount: 6,
   offsets: [0, 0, 0, 0, 0, 0],
   capo: 0,
-  bypassMl: true,
-  harmonicVerify: true,
+};
+const SCORE_DSP = {
+  bypassMl: true,          // force the constraint scorer
+  harmonicVerify: true,    // and its harmonic comb, not the band-energy check
 };
 
 /*
@@ -545,12 +568,21 @@ export function createEngineAdapter(port, opts) {
   function setEar(name) {
     ear = EARS[name] || EARS.medium;
     stats.ear = EARS[name] ? name : 'medium';
-    scoreOpts = Object.assign({}, SCORE_MODE, {
+    scoreOpts = null;                    // rebuilt on the next strum, see `asking`
+  }
+
+  /** The payload for one shape: the engine's own scorer where there is a
+   *  model behind it, the harmonic comb where there is not. */
+  function asking() {
+    if (scoreOpts) return scoreOpts;
+    const dsp = ml === true ? {} : SCORE_DSP;
+    scoreOpts = Object.assign({}, SCORE_BASE, dsp, {
       pitchCheckCents: ear.pitchCheckCents,
       minHitRatio: ear.minHitRatio,
       harmonicSnr: ear.harmonicSnr,
       fundamentalRatio: ear.fundamentalRatio,
     });
+    return scoreOpts;
   }
   const now = o.now || (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
   const wait = o.wait || ((ms) => new Promise((r) => setTimeout(r, ms)));
@@ -563,18 +595,26 @@ export function createEngineAdapter(port, opts) {
    * and still has `detectNotes`, but it is monophonic YIN then and naming a
    * chord from one pitch is not naming a chord — so the question is asked. */
   let notes = null;
+  /* Whether the engine has the Basic Pitch model loaded: `true`, `false`, or
+   * `null` for a build too old to be asked. It decides the scoring payload
+   * (see `SCORE_BASE`) as well as whether the notes road is open at all. */
+  let ml = null;
   async function road() {
     if (notes !== null) return notes;
     notes = false;
     let why = 'no detectnotes';
     try {
+      if (typeof audio.isMlNoteDetection === 'function') ml = (await audio.isMlNoteDetection()) === true;
+    } catch (_) { ml = null; }
+    try {
       if (typeof audio.detectNotes === 'function') {
-        if (typeof audio.isMlNoteDetection !== 'function') { notes = true; why = ''; }
-        else if ((await audio.isMlNoteDetection()) === true) { notes = true; why = ''; }
-        else why = 'ml off';
+        if (ml === false) why = 'ml off';
+        else { notes = true; why = ''; }
       }
     } catch (_) { notes = false; why = 'detectnotes threw'; }
     if (!notes && typeof audio.scoreChord !== 'function') { notes = true; why = ''; }
+    if (!notes && why === 'no detectnotes' && ml === true) why = 'no detectnotes, ml scorer';
+    scoreOpts = null;                    // the payload depends on what we just learned
     stats.road = notes ? 'notes' : 'shapes';
     /* WHICH ROAD, AND WHY IT IS NOT THE OTHER ONE. A session spent three
      * rounds reporting a chord that would not register while every fix went
@@ -689,7 +729,7 @@ export function createEngineAdapter(port, opts) {
       const shape = engineNotes(chord);
       if (!shape) return null;
       try {
-        return { chord, result: await audio.scoreChord(Object.assign({ notes: shape }, scoreOpts)) };
+        return { chord, result: await audio.scoreChord(Object.assign({ notes: shape }, asking())) };
       } catch (_) {
         return null;                    // a hiccup on the bridge is not a miss
       }
@@ -714,10 +754,11 @@ export function createEngineAdapter(port, opts) {
     heardAir = [];
     const wanted = port.candidates.slice();
     if (!wanted.length) return;
+    const byPitches = await road();      // asked once, and it settles the payload too
     await wait(SETTLE_MS);
     if (!running) return;
 
-    const best = (await road()) ? await byNotes() : await byShapes(wanted);
+    const best = byPitches ? await byNotes() : await byShapes(wanted);
     if (!running) return;
     const at = now();
 

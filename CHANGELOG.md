@@ -73,6 +73,20 @@ All notable changes to this project are documented here. The format follows
   string a shape asks you to MUTE is now forgiven — it is that shape's own
   known imperfection. Five shapes are built that way and C is the one a player
   meets first.
+- **The chord is scored by the engine's ML scorer when there is one.**
+  `scoreChord` has two scorers behind it: with Spotify's Basic Pitch model
+  loaded the native side judges each note against the ML detector's active
+  pitch set, and without it a constraint scorer over spectral bands that
+  `notedetect`'s own README documents as false-positiving on a neighbour's
+  energy-band bleed. `bypassMl: true` forces the second, and this game sent
+  it on every call — copied from Strum Fighter, which only ever asks about
+  one shape. A session with a guitar reported exactly what the band scorer is
+  documented to do. `notedetect` sends that flag for SINGLE notes and for its
+  verify target, where "the onset-driven ML path silently drops fast notes",
+  and sends neither flag for a CHORD, because "the native scorer is ML-backed
+  when a model is loaded and it times chords correctly". A chord is what this
+  game asks about. With no model loaded there is nothing to choose between
+  and the harmonic comb still stands, so that payload is kept for that case.
 - **The fallback says it is a fallback, and it got the work.** Three rounds
   of fixes went into the notes road while a session kept reporting a chord
   that would not register — and then the overlay showed `SHAPES`: that build

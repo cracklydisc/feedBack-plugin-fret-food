@@ -446,8 +446,39 @@ every shape in the game with a string missing or a stray one ringing:
   whole shapes still name themselves when the counter wants something else.
   The counter never talks the ear out of a chord it plainly heard.
 
-`scoreChord` stays as the fallback for a build with no ML detector, with its
-ties broken on the fretted strings, since the open ones are nearly free.
+### Where the chords come from, and what a machine needs
+
+Worth stating plainly, because it decides what a player has to install.
+`audio.scoreChord`, `audio.detectNotes` and `audio.isMlNoteDetection` are the
+**desktop build's native audio engine**, not the Note Detection plugin — the
+plugin consumes them exactly as this game does. What varies from machine to
+machine is whether the engine has Spotify's **Basic Pitch** model loaded, and
+that gives three cases:
+
+| the engine has | this game uses | how good |
+|---|---|---|
+| the model, and `detectNotes` | the notes: the pitches ringing, named against the whole vocabulary | best |
+| the model, no `detectNotes` | the shapes, scored by the engine's **ML-backed** scorer | good |
+| no model | the shapes, scored by the constraint scorer over spectral bands | workable |
+
+`scoreChord` has both scorers behind it and picks by what is loaded — unless
+you send `bypassMl`, which forces the second. This game sent it on every
+call, copied from a game that only ever asks about one shape, and a session
+reported what the band scorer is documented to do: chords that would not
+register and false positives on their neighbours. `notedetect` sends that
+flag for SINGLE notes and its verify target, where the ML path "silently
+drops fast notes", and deliberately not for a chord. A chord is what this
+game asks about, so it now asks the way the app asks.
+
+Which case a machine is in shows in the app's own console at startup —
+`[note_detect] desktop bridge active — ML detection: ON` — and in this game's
+own overlay, which names the road and why it is not the other one.
+
+The shapes road also asks about the **neighbours** of what the counter wants:
+scoring only the wanted shapes can answer nothing but a wanted shape, however
+badly it fits, so every shape sharing most of its strings with something on
+the counter is scored beside it. Ties there are broken on the fretted
+strings, since the open ones are nearly free.
 
 **Two chords a semitone apart are two chords a semitone apart.** D and Dsus4
 differ by one note on the high E, and so do Dm and D, Am and A, Em and E:
