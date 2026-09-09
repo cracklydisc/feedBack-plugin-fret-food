@@ -451,15 +451,40 @@ every shape in the game with a string missing or a stray one ringing:
 Worth stating plainly, because it decides what a player has to install.
 `audio.scoreChord`, `audio.detectNotes` and `audio.isMlNoteDetection` are the
 **desktop build's native audio engine**, not the Note Detection plugin — the
-plugin consumes them exactly as this game does. What varies from machine to
-machine is whether the engine has Spotify's **Basic Pitch** model loaded, and
-that gives three cases:
+plugin consumes them exactly as this game does.
 
-| the engine has | this game uses | how good |
+**The model is bundled, and it is switched off.** Spotify's **Basic Pitch**
+ships inside the desktop build at `resources/models/basic_pitch.onnx`, loaded
+at startup beside `onnxruntime.dll`; there is no download, no setting, and
+nothing for a player to install. But it is the most expensive thing in the
+audio engine, so the pipeline is left **suspended** — the default path scores
+through the harmonic-comb verifier and nothing reads ML, and a tuner left open
+on a desk runs no inference. `isMlNoteDetection()` reports that suspended
+state as `false`.
+
+Which is a `false` this game spent three sessions misreading as "this machine
+has no model", on a machine that had the model, its published SHA-256 and the
+ONNX runtime sitting beside it. Nobody had asked for it. The ask is one call:
+
+```js
+window.feedBackDesktop.audio.setNoteDetectionEnabled(true)
+```
+
+It is **refcounted across the whole app** in `window.__ndShared.mlGateWanters`
+— notedetect's own set — because one consumer disarming must never suspend
+the detector for another still reading it. Any plugin that wants ML joins that
+set rather than flipping the bridge behind its back, and gives its hold back
+when it closes. This game asks when the service opens and gives it back when
+the service closes; **a minigame that never asks gets the band scorer**, which
+is the whole of what was wrong here.
+
+So the three cases are these, and only the last one is about the machine:
+
+| the engine | this game uses | how good |
 |---|---|---|
-| the model, and `detectNotes` | the notes: the pitches ringing, named against the whole vocabulary | best |
-| the model, no `detectNotes` | the shapes, scored by the engine's **ML-backed** scorer | good |
-| no model | the shapes, scored by the constraint scorer over spectral bands | workable |
+| armed, with `detectNotes` | the notes: the pitches ringing, named against the whole vocabulary | best |
+| armed, no `detectNotes` | the shapes, scored by the engine's **ML-backed** scorer | good |
+| model absent or failed to load | the shapes, scored by the constraint scorer over spectral bands | workable |
 
 `scoreChord` has both scorers behind it and picks by what is loaded — unless
 you send `bypassMl`, which forces the second. This game sent it on every
@@ -471,8 +496,12 @@ drops fast notes", and deliberately not for a chord. A chord is what this
 game asks about, so it now asks the way the app asks.
 
 Which case a machine is in shows in the app's own console at startup —
-`[note_detect] desktop bridge active — ML detection: ON` — and in this game's
-own overlay, which names the road and why it is not the other one.
+`[audio] ML note detection model loaded from …`, and `[note_detect] desktop
+bridge active — ML detection: ON` once something has armed it — and in this
+game's own overlay, which names the road and why it is not the other one.
+`ML OFF` there means the host has no way to be asked; `ML ASKED, STILL OFF`
+means it was asked and said no, which is the only one of the two that is
+really about the model.
 
 The shapes road also asks about the **neighbours** of what the counter wants:
 scoring only the wanted shapes can answer nothing but a wanted shape, however

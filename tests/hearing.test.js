@@ -240,15 +240,22 @@ test('the chord the counter wants is on the plate however badly it ranked', asyn
 /** A desktop bridge whose level and ringing notes the test decides. */
 function fakeBridge(o) {
   const opt = o || {};
-  return {
+  const b = {
     level: 0,
     air: [],
     strike: 0,
     asked: [],
+    /* The engine's ML pipeline, which the real one leaves suspended until a
+     * consumer asks. `gate: true` gives this bridge the ask, and then it
+     * answers about ML the way the desktop build does: only once armed. */
+    armed: false,
+    gateCalls: [],
     calls: { detectNotes: 0, scoreChord: 0 },
+    async setNoteDetectionEnabled(on) { this.gateCalls.push(!!on); this.armed = !!on; },
     async getLevels() { return { inputLevel: this.level }; },
     async isMlNoteDetection() {
       if (opt.ml === 'unknown') throw new Error('too old to be asked');
+      if (opt.gate) return this.armed && opt.ml !== false;
       return opt.ml !== false;
     },
     async detectNotes() {
@@ -273,6 +280,9 @@ function fakeBridge(o) {
       return { isHit: score >= 0.5, score, hitStrings: Math.round(score * total), totalStrings: total, results: [] };
     },
   };
+  // A host too old for the bridge method simply does not have it.
+  if (!opt.gate) delete b.setNoteDetectionEnabled;
+  return b;
 }
 
 function bench(o) {
@@ -287,6 +297,7 @@ function bench(o) {
   const settles = [];
   const adapter = createEngineAdapter(port, {
     audio: bridge,
+    gateStore: opt.gateStore || {},
     ear: opt.ear || 'medium',
     now: () => t,
     wait: () => new Promise((r) => settles.push(r)),
@@ -475,6 +486,83 @@ test('with the engine s model loaded, the chord is scored the way the app scores
       assert.equal(req.harmonicVerify, true);
     }
   })();
+});
+
+/* ── arming the engine's ML detector ────────────────────────────── */
+
+test('the pipeline is asked for at the door and given back at closing', async () => {
+  /* Basic Pitch is loaded at startup and left SUSPENDED — it is the most
+   * expensive thing in the audio engine, so nothing runs inference until a
+   * consumer asks. This game read the suspended state as "no model here" and
+   * settled for the band scorer on a machine that had the model. */
+  const b = bench({ gate: true, candidates: ['C'] });
+  assert.equal(b.bridge.armed, false, 'nothing is armed before the service opens');
+  b.adapter.start();
+  await b.poll(0.01);
+  assert.equal(b.bridge.armed, true, 'the kitchen asked');
+  await b.poll(0.01);
+  await b.poll(0.6);
+  assert.equal(b.adapter.stats.road, 'notes', 'and now the notes road is open');
+  assert.equal(b.adapter.stats.why, '');
+  b.adapter.stop();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(b.bridge.armed, false, 'an idle kitchen runs no inference');
+  assert.deepEqual(b.bridge.gateCalls, [true, false], 'and it is asked once each way');
+});
+
+test('a host that cannot be asked reads differently from one that said no', () => {
+  return (async () => {
+    /* Two different problems with two different fixes, and they used to read
+     * the same on the plate: an older host with no bridge method needs a new
+     * build, where a host that was asked and stayed off has a model that did
+     * not load. */
+    const old = bench({ ml: false, candidates: ['C'] });
+    old.adapter.start();
+    await old.poll(0.01);
+    await old.poll(0.01);
+    await old.poll(0.6);
+    assert.equal(old.bridge.setNoteDetectionEnabled, undefined);
+    assert.equal(old.adapter.stats.why, 'ml off');
+
+    const said = bench({ gate: true, ml: false, candidates: ['C'] });
+    said.adapter.start();
+    await said.poll(0.01);
+    await said.poll(0.01);
+    await said.poll(0.6);
+    assert.deepEqual(said.bridge.gateCalls, [true], 'it was asked');
+    assert.equal(said.adapter.stats.why, 'ml asked, still off');
+    assert.equal(said.adapter.stats.road, 'shapes');
+  })();
+});
+
+test('one consumer closing does not suspend the pipeline another is reading', async () => {
+  /* The count is the whole app's, not ours — notedetect keeps it in
+   * `window.__ndShared.mlGateWanters` for exactly this. A minigame that
+   * disarmed on its way out would take the detector away from whoever else
+   * was still on it. */
+  const page = {};
+  const mine = bench({ gate: true, gateStore: page, candidates: ['C'] });
+  const theirs = createEngineAdapter(createPort('other'), {
+    audio: mine.bridge,
+    gateStore: page,
+    now: () => 0,
+    wait: () => Promise.resolve(),
+    schedule: () => 1,
+    unschedule: () => {},
+  });
+  mine.adapter.start();
+  theirs.start();
+  await mine.poll(0.01);
+  assert.equal(mine.bridge.armed, true);
+  theirs.stop();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(mine.bridge.armed, true, 'we are still reading it');
+  mine.adapter.stop();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(mine.bridge.armed, false, 'and the last one out gives it back');
 });
 
 test('the overlay says which road and why it is not the other one', () => {

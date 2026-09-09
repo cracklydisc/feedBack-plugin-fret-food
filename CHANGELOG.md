@@ -104,6 +104,27 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **The ML detector was never off: nobody had asked for it.** Three sessions
+  of work went into making the band scorer usable because
+  `isMlNoteDetection()` answered `false`, and it answered `false` on a machine
+  with `resources/models/basic_pitch.onnx` present, matching its published
+  SHA-256, `onnxruntime.dll` beside it and the app's own startup log saying
+  the model had loaded. Basic Pitch is the most expensive thing in the audio
+  engine, so the desktop build loads it and leaves the pipeline **suspended** —
+  the default path scores through the harmonic-comb verifier, a tuner left
+  open runs no inference, and `isMlNoteDetection()` reports that suspended
+  state, not the model's. The ask is `setNoteDetectionEnabled(true)`, and it is
+  refcounted across the whole app in `window.__ndShared.mlGateWanters`
+  (notedetect's own set) because one consumer disarming must never suspend the
+  detector for another still reading it. The game joins that set when the
+  service opens and gives its hold back when it closes; it never creates
+  `__ndShared`, which notedetect initialises whole and would inherit
+  half-built. The overlay now tells the two apart: `ML OFF` is a host with no
+  way to be asked, `ML ASKED, STILL OFF` is a host that was asked and said no —
+  two problems that read identically before, with different fixes. Any arcade
+  plugin scoring chords needs this call; the README says so where a reader
+  looking for what to install will find it.
+
 - **The scorer with no model behind it is read on its own terms.** The
   overlay from a session that played cleanly settled the argument with
   numbers: `SHAPES (ML OFF)`, and rows reading `A7 0.40  Em 0.33  G 0.33

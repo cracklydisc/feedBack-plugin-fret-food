@@ -525,6 +525,10 @@ export function audioBridge(win) {
  * two, whatever ratio those two make. */
 export const MIN_STRINGS = 2;
 
+/** Where the ML refcount lives on a page notedetect never loaded. See
+ *  `mlGate`: it is a page-wide count, so it cannot live in an adapter. */
+const OWN_GATE = {};
+
 /**
  * Picks the chord that fits what was just played.
  *
@@ -635,20 +639,79 @@ export function createEngineAdapter(port, opts) {
    * and still has `detectNotes`, but it is monophonic YIN then and naming a
    * chord from one pitch is not naming a chord — so the question is asked. */
   let notes = null;
-  /* Whether the engine has the Basic Pitch model loaded: `true`, `false`, or
+  /* Whether the engine's ML note detector is running: `true`, `false`, or
    * `null` for a build too old to be asked. It decides the scoring payload
    * (see `SCORE_BASE`) as well as whether the notes road is open at all. */
   let ml = null;
+
+  /*
+   * THE ENGINE'S ML DETECTOR IS OFF UNTIL SOMEBODY ASKS FOR IT.
+   *
+   * Basic Pitch is the most expensive thing in the audio engine, so the
+   * desktop build loads the model at startup and then leaves the pipeline
+   * SUSPENDED — the default path scores through the harmonic-comb verifier
+   * and nothing reads ML, so a tuner session runs no inference at all.
+   * `isMlNoteDetection()` reports that suspended state as `false`.
+   *
+   * This game read that `false` as "this machine has no model" and settled
+   * for the band scorer — on a machine that had the model, its published
+   * hash, and `onnxruntime.dll` sitting beside it. Nobody had ever asked for
+   * it. `setNoteDetectionEnabled(true)` is the ask, and notedetect's own
+   * comment is the documentation: "we arm the engine ML pipeline only while
+   * at least one detector instance is actually in a mode that reads ML".
+   *
+   * It is refcounted across the whole app in `window.__ndShared.mlGateWanters`
+   * because one consumer disarming must never suspend ML for another still
+   * reading it. We join that set rather than flip the bridge behind its back,
+   * and keep our own only where notedetect never loaded — and we never CREATE
+   * `__ndShared`, which notedetect initialises whole (`instances`, `model`, a
+   * dozen more) and would inherit half-built from us. What we ask for we give
+   * back in `stop()`: an idle kitchen must not run inference.
+   */
+  const gateToken = {};
+  /* `gateStore` is the page the count lives on. It has a default and only a
+   * test ever passes one: two adapters in one process are two pages, and a
+   * count shared between them would have the second asking for a pipeline the
+   * first already holds — on a different bridge. */
+  const ownGate = o.gateStore || OWN_GATE;
+  function shared() {
+    const w = typeof window === 'undefined' ? null : window;
+    const s = w && w.__ndShared ? w.__ndShared : ownGate;
+    if (!s.mlGateWanters) s.mlGateWanters = new Set();
+    if (typeof s.mlGateOn !== 'boolean') s.mlGateOn = false;
+    return s;
+  }
+  /** Ask for the ML pipeline, or give it back. True if the ask could be made
+   *  at all — a host without the bridge method cannot arm anything. */
+  async function mlGate(on) {
+    if (!audio || typeof audio.setNoteDetectionEnabled !== 'function') return false;
+    const s = shared();
+    if (on) s.mlGateWanters.add(gateToken); else s.mlGateWanters.delete(gateToken);
+    const want = s.mlGateWanters.size > 0;
+    if (want === s.mlGateOn) return true;              // somebody else already holds it
+    try {
+      await audio.setNoteDetectionEnabled(want);
+      s.mlGateOn = want;                               // committed on success, so a failure retries
+    } catch (_) { return false; }
+    return true;
+  }
+
   async function road() {
     if (notes !== null) return notes;
     notes = false;
     let why = 'no detectnotes';
+    const armed = await mlGate(true);
     try {
       if (typeof audio.isMlNoteDetection === 'function') ml = (await audio.isMlNoteDetection()) === true;
     } catch (_) { ml = null; }
     try {
       if (typeof audio.detectNotes === 'function') {
-        if (ml === false) why = 'ml off';
+        /* Told apart on purpose. `ml off` is a host that cannot be asked, and
+         * the answer to it is a newer build; `ml asked, still off` is a host
+         * that was asked and said no, which means the model itself did not
+         * load — a different problem with a different fix, and one nobody
+         * could diagnose while both read the same on the plate. */
+        if (ml === false) why = armed ? 'ml asked, still off' : 'ml off';
         else { notes = true; why = ''; }
       }
     } catch (_) { notes = false; why = 'detectnotes threw'; }
@@ -940,6 +1003,10 @@ export function createEngineAdapter(port, opts) {
         return;
       }
       running = true;
+      /* Asked here and not at the first strum, so the engine has the whole
+       * walk to the counter to spin the pipeline up. `road()` asks again and
+       * the second ask is free — this one is only about being early. */
+      mlGate(true).catch(() => {});
       port.emit('status', { ready: true, source: port.source, reason: 'desktop audio engine' });
       tick();
     },
@@ -948,6 +1015,10 @@ export function createEngineAdapter(port, opts) {
       if (timer) { unschedule(timer); timer = null; }
       // A fresh start begins from a clean background, not the last session's.
       baseline = 0; prevLevel = 0; primed = false; armed = true;
+      // Given back, and the road asked again next time: the answer depends on
+      // a gate that anybody in the app can have moved since.
+      mlGate(false).catch(() => {});
+      notes = null; ml = null; scoreOpts = null;
     },
   };
 }
