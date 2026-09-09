@@ -19,6 +19,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   nameFrom, pitchesOf, TUNING, bestFit, frettedHits, createEngineAdapter, EARS, NEAR_SHAPES,
+  ALTERNATES, ticketed, onTicket,
 } from '../src/input/engine.js';
 import { createPort } from '../src/input/port.js';
 import { SHAPES, CHORDS, label } from '../src/menu.js';
@@ -485,6 +486,65 @@ test('with the engine s model loaded, the chord is scored the way the app scores
       assert.equal(req.bypassMl, true, 'with no model there is nothing to choose, and the comb hears a strum');
       assert.equal(req.harmonicVerify, true);
     }
+  })();
+});
+
+/* ── two fingerings of one chord ─────────────────────────────────── */
+
+test('shapes that print the same name are alternates of each other', () => {
+  /* Built from what the card prints, not from a list kept by hand: `F+` shows
+   * as F, so the two are one chord and a third fingering added tomorrow with
+   * a `show` joins them without touching any of this. */
+  assert.deepEqual(ALTERNATES.F, ['F+']);
+  assert.deepEqual(ALTERNATES['F+'], ['F']);
+  assert.equal(ALTERNATES.C, undefined, 'a shape with one fingering has no alternates');
+  for (const key of Object.keys(ALTERNATES)) {
+    for (const alt of ALTERNATES[key]) {
+      assert.equal(label(alt), label(key), key + ' and ' + alt + ' must print the same');
+      assert.ok(ALTERNATES[alt].includes(key), 'and the pairing goes both ways');
+    }
+  }
+  assert.deepEqual(ticketed(['F', 'C']), ['F', 'C', 'F+']);
+  assert.deepEqual(ticketed(['C']), ['C'], 'and nothing is added to a chord with one fingering');
+});
+
+test('the ticket a chord answers is its own, then a fingering of it', () => {
+  assert.equal(onTicket('F+', ['F']), 'F', 'the barre answers the F somebody ordered');
+  assert.equal(onTicket('F', ['F+']), 'F+', 'and the easy one answers the barre');
+  assert.equal(onTicket('F+', ['F', 'F+']), 'F+',
+    'the exact shape wins whenever both are on the counter');
+  assert.equal(onTicket('C', ['F']), 'C',
+    'and a chord with no fingering on any ticket comes back as itself');
+});
+
+test('the whole barre cooks an F, on either road', () => {
+  return (async () => {
+    /* A reader who is not a beginner sees F on the card and plays `133211`,
+     * because it is an F. It used to come back as a chord nobody ordered. */
+    const air = bench({ candidates: ['F'] });
+    air.adapter.start();
+    await air.play('F+');
+    assert.equal(air.adapter.stats.road, 'notes');
+    assert.deepEqual(air.strums.map((x) => x.chord), ['F'], 'the notes road');
+
+    const shapes = bench({ ml: false, candidates: ['F'], scores: { 'F+': 0.9 } });
+    shapes.adapter.start();
+    await shapes.play('F+');
+    assert.equal(shapes.adapter.stats.road, 'shapes');
+    assert.deepEqual(shapes.strums.map((x) => x.chord), ['F'], 'and the shapes road');
+    assert.ok(shapes.bridge.asked.length > 1, 'which had to have scored the barre to find it');
+  })();
+});
+
+test('each fingering cooks its own pot when the counter wants both', () => {
+  return (async () => {
+    /* Accepting the alternate is for a card that cannot tell them apart. When
+     * both are ordered the evidence plainly can, so it decides. */
+    const b = bench({ candidates: ['F', 'F+'] });
+    b.adapter.start();
+    await b.play('F+');
+    await b.play('F');
+    assert.deepEqual(b.strums.map((x) => x.chord), ['F+', 'F']);
   })();
 });
 

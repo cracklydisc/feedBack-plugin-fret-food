@@ -130,6 +130,33 @@ const MIN_GAP_MS = 170;    // two strums closer than this are one strum ringing
  */
 const REARM_MS = 180;
 
+/*
+ * TWO STRUMS, OR ONE CHORD STILL RINGING? — AND WHY NOTHING GUARDS IT HERE.
+ *
+ * A session on the band scorer reported "suonando un accordo tipo C e
+ * lasciandolo risuonare si sbloccano anche accordi successivi": one strum of
+ * a C cooking the C in front of it and then the C behind it, off the same
+ * ring. A guard was written for it — a repeat of the chord the hand is
+ * already on would have had to show that the strings were struck ANEW, either
+ * by the level falling away to the background between the two or by the onset
+ * being a real jump rather than a wobble in something already loud.
+ *
+ * It is not here because the same session, with the engine's ML detector
+ * armed, reported clean recognition and no double-cook. The double-cook was
+ * the band scorer naming a decaying ring as whatever was nearest, not a
+ * missing rule about strums — and shipping an unmeasured threshold against a
+ * fault that no longer reproduces buys nothing and costs the honest repeats:
+ * two C's on a counter must still cost two strums, and `REARM_MS` exists
+ * precisely because a real second strum lands while the first is ringing.
+ *
+ * If it comes back, the measurement to make first is the overlay's `held`
+ * count against a player who knows what they played, and the sharper
+ * instrument is on the notes road: every pitch carries an `onsetSeq` that goes
+ * up when THAT string is struck. Useless as a trigger — one pitch struck anew
+ * is one string, and it fired on every sweep — but exactly the right question
+ * to ask of a chord about to be named twice.
+ */
+
 /* How long to let the chord ring before scoring it. The attack transient is
  * noise; the sustain reads clean. Strum Fighter waits the same 55 ms, and Fret
  * Food can afford it: the two strums of a cycle are 375 ms apart. */
@@ -529,6 +556,57 @@ export const MIN_STRINGS = 2;
  *  `mlGate`: it is a page-wide count, so it cannot live in an adapter. */
 const OWN_GATE = {};
 
+/*
+ * TWO FINGERINGS OF ONE CHORD.
+ *
+ * F is written F on the card whether the hand plays `xx3211` or the whole
+ * barre `133211` — that is what `SHAPES['F+'].show` is for, and the card
+ * draws the diagram so a player can see which one was meant. But somebody who
+ * is not a beginner reads F and plays the barre, because it IS an F, and used
+ * to cook nothing at all: `F+` is not on the ticket, so a perfect barre came
+ * back as a chord nobody ordered.
+ *
+ * The groups build themselves out of what the card prints, so a third
+ * fingering added tomorrow with a `show` joins without touching this: two
+ * shapes that print the same name are alternates of each other.
+ */
+export const ALTERNATES = {};
+{
+  const byName = {};
+  for (const key of Object.keys(SHAPES)) {
+    const n = label(key);
+    (byName[n] || (byName[n] = [])).push(key);
+  }
+  for (const group of Object.values(byName)) {
+    if (group.length < 2) continue;
+    for (const key of group) ALTERNATES[key] = group.filter((k) => k !== key);
+  }
+}
+
+/** The wanted shapes plus every other fingering of them — what to score, and
+ *  what the counter counts as an order. */
+export function ticketed(wanted) {
+  const out = wanted.slice();
+  for (const c of wanted) for (const alt of ALTERNATES[c] || []) if (!out.includes(alt)) out.push(alt);
+  return out;
+}
+
+/**
+ * The ticket a named chord answers.
+ *
+ * Itself when somebody ordered it, and otherwise the wanted shape it is
+ * another fingering of. Never a filter: a chord with no alternate on the
+ * counter comes back unchanged and is then the answer nobody wants, which is
+ * the answer. And the exact shape always wins over the alternate — when both
+ * F and the barre are on the counter, each cooks its own pot, because by then
+ * the evidence really can tell them apart.
+ */
+export function onTicket(chord, wanted) {
+  if (!chord || !wanted || wanted.includes(chord)) return chord;
+  for (const alt of ALTERNATES[chord] || []) if (wanted.includes(alt)) return alt;
+  return chord;
+}
+
 /**
  * Picks the chord that fits what was just played.
  *
@@ -784,7 +862,11 @@ export function createEngineAdapter(port, opts) {
     if (stats.last.length > LOG) stats.last.length = LOG;
   }
   setEar(o.ear || 'medium');
-  let lastNamed = null;               // { chord, at }: the shape the hand holds, and when it was last heard
+  // { chord, raw, at }: the ticket the hand is cooking, the shape it is
+  // actually holding (which can be the other fingering — see `onTicket`), and
+  // when it was last heard.
+  let lastNamed = null;
+
 
   function send(ev) {
     const out = flaws ? flaws(ev) : [ev];
@@ -814,7 +896,7 @@ export function createEngineAdapter(port, opts) {
     stats.air = air.slice().sort((a, b) => a - b);
     // The counter is handed over as a TIE-BREAK and never as a filter: see
     // `nameFrom`. What is played is named first, out of everything.
-    const best = nameFrom(air, { floor: ear.fit, wanted: port.candidates });
+    const best = nameFrom(air, { floor: ear.fit, wanted: ticketed(port.candidates) });
     heardAir = air;
     return best ? { chord: best.chord, quality: best.fit } : null;
   }
@@ -827,7 +909,8 @@ export function createEngineAdapter(port, opts) {
    * is scored against the counter's new wants and named as one of them.
    */
   async function byShapes(wanted) {
-    const decoy = lastNamed && !wanted.includes(lastNamed.chord) ? lastNamed.chord : null;
+    const asked = ticketed(wanted);      // and every other fingering of them
+    const decoy = lastNamed && !asked.includes(lastNamed.raw) ? lastNamed.raw : null;
     /* THE NEIGHBOURS, and not only what the counter wants.
      *
      * Scoring the wanted shapes alone can answer nothing but a wanted shape,
@@ -838,8 +921,11 @@ export function createEngineAdapter(port, opts) {
      * of THOSE wins then what was played is not on any ticket. The set is
      * bounded (see `NEAR_SHAPES`) because each one is a round trip to the
      * engine and a strum cannot wait. */
+    /* The alternates come before the neighbours so the cap cannot drop one:
+     * a fingering of a chord on the ticket is not a neighbour, it is the
+     * chord. */
     const chords = [...new Set(
-      (decoy ? wanted.concat([decoy]) : wanted).concat(...wanted.map((c) => NEAR_SHAPES[c] || [])),
+      (decoy ? asked.concat([decoy]) : asked).concat(...wanted.map((c) => NEAR_SHAPES[c] || [])),
     )].slice(0, MOST_ASKED);
     /* All of them at once. Each call scores the audio as it is when the engine
      * gets it, so scoring five in a row would judge five different instants of
@@ -861,11 +947,11 @@ export function createEngineAdapter(port, opts) {
         score: x.result ? Number(x.result.score) : 0,
         hits: x.result ? Number(x.result.hitStrings) || 0 : 0,
         of: x.result ? Number(x.result.totalStrings) || 0 : 0,
-        wanted: wanted.includes(x.chord),
+        wanted: asked.includes(x.chord),
       }))
       .sort((a, b) => b.hits - a.hits || b.score - a.score);
-    const best = bestFit(scored, ml === true ? ear.floor : ear.dsp, wanted);
-    if (best && !wanted.includes(best.chord) && best.chord !== decoy) {
+    const best = bestFit(scored, ml === true ? ear.floor : ear.dsp, asked);
+    if (best && !asked.includes(best.chord) && best.chord !== decoy) {
       // A neighbour of a wanted shape fitted better than the shape itself:
       // what was played is a real chord and it is not on any ticket.
       return { chord: best.chord, quality: best.score };
@@ -884,21 +970,29 @@ export function createEngineAdapter(port, opts) {
     await wait(SETTLE_MS);
     if (!running) return;
 
-    const best = byPitches ? await byNotes() : await byShapes(wanted);
+    const heard = byPitches ? await byNotes() : await byShapes(wanted);
     if (!running) return;
     const at = now();
 
-    if (best && lastNamed && best.chord === lastNamed.chord && !wanted.includes(best.chord)) {
-      /* THE HAND HOLDS ITS SHAPE. The chord it was holding, strummed again or
+    /* One fingering answers for another, and this is the only place that has
+     * to know: both roads name a SHAPE, and which ticket that shape is on is
+     * the counter's question, not the ear's. `raw` stays the shape actually
+     * heard, because that is what the ring rule and the decoy are about. */
+    const raw = heard ? heard.chord : null;
+    const best = heard ? Object.assign({}, heard, { chord: onTicket(raw, wanted) }) : null;
+    if (best && lastNamed && raw === lastNamed.raw && !wanted.includes(best.chord)) {
+      /* THE HAND HOLDS ITS SHAPE. The shape it was holding, strummed again or
        * still ringing, and no pot wants it any more: nothing new was played.
-       * The hand was heard NOW, which is what the quarter of a second below
-       * is measured from. */
+       * Compared on the SHAPE and not on the ticket, so the barre F the hand
+       * is really on is not read as a change every time the counter's F comes
+       * and goes. The hand was heard NOW, which is what the quarter of a
+       * second below is measured from. */
       stats.ring++;
       logged('held', best);
-      lastNamed = { chord: best.chord, at };
+      lastNamed = { chord: best.chord, raw, at };
       return;
     }
-    if (best && lastNamed && best.chord !== lastNamed.chord && at - lastNamed.at < MIN_CHANGE_MS) {
+    if (best && lastNamed && raw !== lastNamed.raw && at - lastNamed.at < MIN_CHANGE_MS) {
       // A different chord a quarter of a second after the last: no hand
       // changes shape that fast. The ring, misjudged; heard on its next strum.
       stats.quick++;
@@ -912,13 +1006,13 @@ export function createEngineAdapter(port, opts) {
        * now, which is what stops its next strum being read as a change. */
       stats.unknown++;
       logged('nobody wants', best);
-      lastNamed = { chord: best.chord, at };
+      lastNamed = { chord: best.chord, raw, at };
       return;
     }
     if (best) {
       stats.named++;
       logged('cooked', best);
-      lastNamed = { chord: best.chord, at };
+      lastNamed = { chord: best.chord, raw, at };
       send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.quality)), at, heardAt: at });
       return;
     }
@@ -1015,6 +1109,7 @@ export function createEngineAdapter(port, opts) {
       if (timer) { unschedule(timer); timer = null; }
       // A fresh start begins from a clean background, not the last session's.
       baseline = 0; prevLevel = 0; primed = false; armed = true;
+      lastNamed = null;                 // and from a hand holding nothing
       // Given back, and the road asked again next time: the answer depends on
       // a gate that anybody in the app can have moved since.
       mlGate(false).catch(() => {});

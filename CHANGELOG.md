@@ -104,6 +104,28 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **F is F, whichever way the hand plays it.** The card prints F for both
+  fingerings — that is what `SHAPES['F+'].show` is for — and a player who is
+  not a beginner reads F and plays the whole barre `133211`, because it is an
+  F. It cooked nothing: `F+` was not on the ticket, so a clean barre came back
+  as a chord nobody ordered. Two shapes that PRINT the same name are now
+  alternates of each other, and the groups build themselves out of what the
+  card prints, so a third fingering added tomorrow with a `show` joins without
+  touching any of it. The shapes road scores the alternates beside the wanted
+  ones — ahead of the neighbours, so the ten-shape cap cannot drop one — the
+  notes road counts them as ordered, and `onTicket` maps what was heard onto
+  the pot it answers, once, where both roads pass. Accepting the alternate is
+  for a card that cannot tell them apart: when the counter wants BOTH, the
+  exact shape wins and each cooks its own pot, because by then the evidence
+  really can tell them apart. What the hand is holding is tracked as the shape
+  and not as the ticket, so the barre is not read as a change every time the
+  counter's F comes and goes.
+- **A star, and a pair of brackets.** The ear overlay marks the chords the
+  counter wants and prints in brackets the reason a road was not taken, and
+  the S font had neither glyph — an unknown one draws as `?`, so
+  `SHAPES (ML OFF)` came out `SHAPES ?ML OFF?` and a marked D as `D?`. A
+  diagnostic that reads as a question about the thing it is stating.
+
 - **The ML detector was never off: nobody had asked for it.** Three sessions
   of work went into making the band scorer usable because
   `isMlNoteDetection()` answered `false`, and it answered `false` on a machine

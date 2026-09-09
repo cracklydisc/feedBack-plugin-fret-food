@@ -162,6 +162,14 @@ const S = {
   '^': ['.#.', '#.#', '...', '...', '...'],
   '?': ['##.', '..#', '.#.', '...', '.#.'],
   ',': ['...', '...', '...', '.#.', '#..'],
+  /* A star and a pair of brackets, both for the ear overlay: it marks the
+   * chords the counter wants with a `*` and prints the reason a road was not
+   * taken in brackets. An unknown glyph draws as `?`, so `SHAPES (ML OFF)`
+   * came out `SHAPES ?ML OFF?` and the marked chords as `D?` — a diagnostic
+   * that reads as a question about the thing it is stating. */
+  '*': ['#.#', '.#.', '#.#', '...', '...'],
+  '(': ['.##', '.#.', '#..', '.#.', '.##'],
+  ')': ['##.', '.#.', '..#', '.#.', '##.'],
   ' ': ['...', '...', '...', '...', '...'],
 };
 
