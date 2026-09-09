@@ -449,17 +449,6 @@ every shape in the game with a string missing or a stray one ringing:
 `scoreChord` stays as the fallback for a build with no ML detector, with its
 ties broken on the fretted strings, since the open ones are nearly free.
 
-**A strum is noticed two ways, and either will do.** The level is polled
-sixty times a second and a strum is a sharp rise above a rolling background.
-That is Strum Fighter's measured detector and it works — but a rise in the
-level is a rise in the level, and the C is the one chord you strum carefully,
-because `x32010` asks you to miss the low E. A session reported it going
-unheard over and over. So the notes' own onsets fire too: every note the
-engine reports carries an `onsetSeq` that goes up when THAT pitch is struck
-anew, which is what `notedetect` gates its own chord timing on, and a pitch
-struck quietly is struck all the same. Whichever notices first wins and one
-gesture is still one hearing.
-
 **Two chords a semitone apart are two chords a semitone apart.** D and Dsus4
 differ by one note on the high E, and so do Dm and D, Am and A, Em and E:
 sixteen pairs in the vocabulary sit one string apart. When the detector

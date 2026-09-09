@@ -16,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createPort } from '../src/input/port.js';
-import { createEngineAdapter, engineNotes, bestFit, audioBridge } from '../src/input/engine.js';
+import { createEngineAdapter, engineNotes, bestFit, audioBridge, MOST_ASKED } from '../src/input/engine.js';
 import { SHAPES, CHORDS } from '../src/menu.js';
 
 /** A bridge whose input level and per-chord scores the test decides. */
@@ -130,8 +130,18 @@ test('a strum names the chord that fits, with the ratio from the engine as its q
   assert.equal(b.strums[0].chord, 'C');
   assert.equal(b.strums[0].quality, 1);
   assert.equal(b.strums[0].source, 'detector');
-  // It asked about both chords, in one go.
-  assert.equal(b.bridge.calls.length, 2, 'both candidates should have been scored');
+  /* It asked about both chords in one go, and about their neighbours too:
+   * `scoreChord` answers "how much of THIS shape rang", so the only way to
+   * learn that the player played something else is to ask about the
+   * something else — see `NEAR_SHAPES`. The set is capped, because each one
+   * is a round trip and the next strum is 375 ms away. */
+  const asked = new Set(b.bridge.calls.map((c) => c.notes.map((n) => n.s + ':' + n.f).join(',')));
+  assert.ok(asked.size >= 2, 'both candidates should have been scored');
+  assert.ok(asked.size <= MOST_ASKED, 'and no more shapes than the cap: ' + asked.size);
+  for (const c of ['C', 'Am']) {
+    const sig = engineNotes(c).map((n) => n.s + ':' + n.f).join(',');
+    assert.ok(asked.has(sig), c + ' was not asked about');
+  }
 });
 
 test('a strum nothing fits is dropped, not charged to the player', async () => {

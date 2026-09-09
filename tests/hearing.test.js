@@ -324,45 +324,28 @@ test('the strict ear asks for more agreement than the kind one', async () => {
     'and two strings of five are not a chord at any grade: see MIN_RECALL');
 });
 
-test('a strum too quiet for the level is still heard, because the notes were struck', () => {
-  /* The C, and why it kept going unheard. `x32010` asks you to miss the low
-   * E, so it is the one chord a beginner strums carefully, and a careful
-   * strum is a small rise: the level detector's job is to tell a strum from a
-   * ring-out and it does that by how sharply the signal climbs. A pitch
-   * struck anew is struck anew however quietly, and every note the engine
-   * reports carries that as a counter. */
+test('one gesture is one hearing', () => {
+  /* The notes' own onsets were tried as a second trigger and taken back out:
+   * one pitch struck anew is one STRING, so a single sweep fired several
+   * times and every extra hearing was another chance to name something
+   * wrong. A whole-chord attack is what a strum is. */
   return (async () => {
     const b = bench({ candidates: ['C'] });
     b.adapter.start();
     await b.poll(0.01);
     await b.poll(0.01);
-    await b.quietly('C');
-    assert.equal(b.strums.length, 1, 'the notes noticed what the level could not');
-    assert.equal(b.strums[0].chord, 'C');
-    assert.ok(b.adapter.stats.struck > 0, 'and it is counted as struck, not as a rise');
-  })();
-});
-
-test('one gesture is one hearing, however many ways it was noticed', () => {
-  return (async () => {
-    const b = bench({ candidates: ['C'] });
-    b.adapter.start();
-    await b.poll(0.01);
-    await b.poll(0.01);
-    // Loud AND struck: the level rise and the notes' onsets land together.
     await b.play('C');
     assert.equal(b.strums.length, 1);
-    assert.equal(b.adapter.stats.onsets, 1, 'both triggers, one onset');
+    assert.equal(b.adapter.stats.onsets, 1, 'one gesture, one onset');
   })();
 });
 
-test('the pitches already ringing when the service opens are not a strum', () => {
+test('a chord left ringing when the service opens is not a strum', () => {
   return (async () => {
     const b = bench({ candidates: ['C'] });
     b.bridge.air = pitchesOf('C');
-    b.bridge.strike = 7;                    // a chord left ringing from before
     b.adapter.start();
     for (let k = 0; k < 6; k++) await b.poll(0.01, 48);
-    assert.equal(b.strums.length, 0, 'the first poll is a baseline, not a gesture');
+    assert.equal(b.strums.length, 0, 'a level that never rises is nobody playing');
   })();
 });

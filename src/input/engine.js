@@ -35,19 +35,18 @@
  * second set of numbers tuned by ear against the same engine would be a worse
  * set of numbers.
  *
- * THE NOTES' OWN ONSETS are the second, and on a build with the ML detector
- * they are the better one. Every note `detectNotes` reports carries an
- * `onsetSeq`, a counter that goes up when THAT pitch is struck anew, and
- * `notedetect` gates its own chord timing on exactly that. A rise in the
- * level is a rise in the level: it depends on how hard the room, the pickup
- * and the hand happen to make a chord, and a session with a guitar reported
- * the C going unheard over and over — which is the one shape you strum
- * carefully, because `x32010` asks you to miss the low E, and missing a
- * string means less signal. A pitch struck anew is struck anew however
- * quietly.
- *
- * So both fire, and `MIN_GAP_MS` keeps one strum from being two. Whichever
- * notices first wins, and on a quiet C that is the notes.
+ * THE NOTES' OWN ONSETS were tried as a second trigger and taken back out,
+ * which is worth writing down so nobody spends the afternoon again. Every
+ * note `detectNotes` reports carries an `onsetSeq` that goes up when THAT
+ * pitch is struck anew, and `notedetect` gates its own chord timing on it, so
+ * it looked like the answer to a session reporting that the C — the one shape
+ * you strum carefully, because `x32010` asks you to miss the low E — went
+ * unheard. It is not: one pitch struck anew is ONE STRING, and firing on it
+ * meant hearing several times through a single sweep and once more whenever a
+ * ringing note re-triggered, each of them another chance to name something
+ * wrong. The session that followed reported more false positives and no
+ * change on the C. A whole-chord attack is what a strum is, and the level is
+ * what sees it.
  *
  * ── WHICH CHORD WAS IT: THE NOTES, WHEN THE ENGINE HAS THEM ────────────
  *
@@ -92,7 +91,7 @@
  * tells the truth.
  */
 
-import { SHAPES } from '../menu.js';
+import { SHAPES, label } from '../menu.js';
 
 /* ── the onset detector's constants ──────────────────────────────────────
  *
@@ -137,13 +136,6 @@ const REARM_MS = 180;
 const SETTLE_MS = 55;
 
 const POLL_MS = 16;        // about sixty a second, like the game itself
-
-/* How often the notes are asked for. `notedetect` runs its own detection loop
- * at fifty and guards against overlapping calls, so this is the app's own
- * rate rather than a number of ours; the level goes on being read every
- * poll, because it costs nothing and it is the one thing that says whether
- * the guitar is reaching the app at all. */
-const NOTES_MS = 48;
 
 /* What the engine is asked for. `bypassMl` + `harmonicVerify` select the DSP
  * harmonic-comb verifier, which is the mode that actually detects a STRUMMED
@@ -442,6 +434,36 @@ export function nameFrom(heard, opts) {
   return best && best.fit >= floor ? best : null;
 }
 
+/*
+ * THE SHAPES EACH SHAPE IS CONFUSED WITH, for the road that has to ask about
+ * one shape at a time.
+ *
+ * `scoreChord` answers "how much of THIS shape rang", so the only way to
+ * learn that a player played something else is to ask about the something
+ * else as well. Asking about all twenty-eight is a round trip each and a
+ * strum cannot wait, so each shape carries the handful that share the most
+ * pitches with it — which is exactly the set it gets mistaken for.
+ */
+const NEAR = 3;
+/* And however many pots are on the counter, no more shapes than this are
+ * asked about on one strum: every one is a round trip to the engine and the
+ * next strum is 375 ms away. The wanted shapes come first, so a full counter
+ * never loses one of its own to a neighbour. */
+export const MOST_ASKED = 10;
+export const NEAR_SHAPES = {};
+{
+  const names = Object.keys(PITCHES);
+  for (const a of names) {
+    NEAR_SHAPES[a] = names
+      .filter((b) => b !== a)
+      .map((b) => ({ b, shared: PITCHES[a].filter((p) => PITCHES[b].includes(p)).length }))
+      .sort((x, y) => y.shared - x.shared || (x.b < y.b ? -1 : 1))
+      .slice(0, NEAR)
+      .filter((x) => x.shared >= 2)
+      .map((x) => x.b);
+  }
+}
+
 /** The engine's audio bridge, or `null` when this is not a desktop build. */
 export function audioBridge(win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
@@ -544,26 +566,27 @@ export function createEngineAdapter(port, opts) {
   async function road() {
     if (notes !== null) return notes;
     notes = false;
+    let why = 'no detectnotes';
     try {
       if (typeof audio.detectNotes === 'function') {
-        notes = typeof audio.isMlNoteDetection !== 'function'
-          ? true
-          : (await audio.isMlNoteDetection()) === true;
+        if (typeof audio.isMlNoteDetection !== 'function') { notes = true; why = ''; }
+        else if ((await audio.isMlNoteDetection()) === true) { notes = true; why = ''; }
+        else why = 'ml off';
       }
-    } catch (_) { notes = false; }
-    if (!notes && typeof audio.scoreChord !== 'function') notes = true;   // nothing else to try
+    } catch (_) { notes = false; why = 'detectnotes threw'; }
+    if (!notes && typeof audio.scoreChord !== 'function') { notes = true; why = ''; }
     stats.road = notes ? 'notes' : 'shapes';
+    /* WHICH ROAD, AND WHY IT IS NOT THE OTHER ONE. A session spent three
+     * rounds reporting a chord that would not register while every fix went
+     * into the notes road — and the overlay then showed `SHAPES`, because
+     * this build has no polyphonic detector at all. A fallback that does not
+     * say it is a fallback costs more than the feature it stands in for. */
+    stats.why = why;
     return notes;
   }
 
   let running = false;
   let timer = null;
-  /* The onset counter last seen for each pitch, and whether the first poll
-   * has been taken. Without the priming, every pitch already ringing when
-   * the service opens arrives as a strum. */
-  const seqSeen = new Map();
-  let primedNotes = false;
-  let notesAt = -1e9;
   let baseline = 0;
   let prevLevel = 0;
   let primed = false;
@@ -571,7 +594,7 @@ export function createEngineAdapter(port, opts) {
   let lastOnsetAt = -1e9;
   let scoring = false;
   const stats = {
-    onsets: 0, struck: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0,
+    onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0,
     ear: o.ear || 'medium', road: '?',
     /* The last few hearings, newest first, for the overlay: what was in the
      * air, what it was called and what became of it. It is the only way to
@@ -580,12 +603,23 @@ export function createEngineAdapter(port, opts) {
     last: [],
   };
   const LOG = 4;
-  function logged(why, air, best) {
+  /**
+   * One line of what just happened, for the overlay.
+   *
+   * `saw` is whatever the road had in front of it: the pitches, on the notes
+   * road, and the shapes it asked about with their scores on the other. The
+   * two look different on purpose — a player looking at the plate should be
+   * able to tell which road is running without reading the header.
+   */
+  function logged(why, best) {
+    const saw = notes
+      ? heardAir.slice().sort((a, b) => a - b).map(noteName)
+      : (stats.scores || []).slice(0, 4).map((s) => label(s.chord) + ' ' + s.score.toFixed(2));
     stats.last.unshift({
       why,
-      air: (air || []).slice().sort((a, b) => a - b).map(noteName),
+      air: saw,
       chord: best ? best.chord : null,
-      fit: best ? best.fit : 0,
+      fit: best ? (best.fit === undefined ? best.quality : best.fit) : 0,
     });
     if (stats.last.length > LOG) stats.last.length = LOG;
   }
@@ -634,7 +668,19 @@ export function createEngineAdapter(port, opts) {
    */
   async function byShapes(wanted) {
     const decoy = lastNamed && !wanted.includes(lastNamed.chord) ? lastNamed.chord : null;
-    const chords = decoy ? wanted.concat([decoy]) : wanted;
+    /* THE NEIGHBOURS, and not only what the counter wants.
+     *
+     * Scoring the wanted shapes alone can answer nothing but a wanted shape,
+     * however badly it fits — that is the flaw the notes road exists to fix,
+     * and on a build with no polyphonic detector this is the road that runs,
+     * so it has to be fixed here too. Every shape that shares most of its
+     * strings with something on the counter is scored beside it, and if one
+     * of THOSE wins then what was played is not on any ticket. The set is
+     * bounded (see `NEAR_SHAPES`) because each one is a round trip to the
+     * engine and a strum cannot wait. */
+    const chords = [...new Set(
+      (decoy ? wanted.concat([decoy]) : wanted).concat(...wanted.map((c) => NEAR_SHAPES[c] || [])),
+    )].slice(0, MOST_ASKED);
     /* All of them at once. Each call scores the audio as it is when the engine
      * gets it, so scoring five in a row would judge five different instants of
      * the same ring; in parallel they land within a few milliseconds of each
@@ -649,8 +695,15 @@ export function createEngineAdapter(port, opts) {
       }
     }));
     if (!running) return null;
-    stats.scores = scored.filter(Boolean).map((x) => x.chord + ':' + (x.result ? Number(x.result.score).toFixed(2) : '-'));
+    stats.scores = scored.filter(Boolean)
+      .map((x) => ({ chord: x.chord, score: x.result ? Number(x.result.score) : 0 }))
+      .sort((a, b) => b.score - a.score);
     const best = bestFit(scored, ear.floor);
+    if (best && !wanted.includes(best.chord) && best.chord !== decoy) {
+      // A neighbour of a wanted shape fitted better than the shape itself:
+      // what was played is a real chord and it is not on any ticket.
+      return { chord: best.chord, quality: best.score };
+    }
     return best ? { chord: best.chord, quality: best.score } : null;
   }
 
@@ -674,7 +727,7 @@ export function createEngineAdapter(port, opts) {
        * The hand was heard NOW, which is what the quarter of a second below
        * is measured from. */
       stats.ring++;
-      logged('ring', heardAir, best);
+      logged('held', best);
       lastNamed = { chord: best.chord, at };
       return;
     }
@@ -682,7 +735,7 @@ export function createEngineAdapter(port, opts) {
       // A different chord a quarter of a second after the last: no hand
       // changes shape that fast. The ring, misjudged; heard on its next strum.
       stats.quick++;
-      logged('quick', heardAir, best);
+      logged('too quick', best);
       return;
     }
     if (best && !wanted.includes(best.chord)) {
@@ -691,13 +744,13 @@ export function createEngineAdapter(port, opts) {
        * it is still not charged as a miss: see below. The hand is holding it
        * now, which is what stops its next strum being read as a change. */
       stats.unknown++;
-      logged('nobody wants', heardAir, best);
+      logged('nobody wants', best);
       lastNamed = { chord: best.chord, at };
       return;
     }
     if (best) {
       stats.named++;
-      logged('cooked', heardAir, best);
+      logged('cooked', best);
       lastNamed = { chord: best.chord, at };
       send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.quality)), at, heardAt: at });
       return;
@@ -718,7 +771,7 @@ export function createEngineAdapter(port, opts) {
      * It is counted, though: `unknown` climbing while `named` does not is the
      * signature of an ear set too strict for this guitar. */
     stats.unknown++;
-    logged('no chord', heardAir, null);
+    logged('under the floor', null);
   }
 
   /** A strum, however it was noticed. Throttled: one gesture is one hearing. */
@@ -730,34 +783,6 @@ export function createEngineAdapter(port, opts) {
     if (scoring) return;
     scoring = true;
     hear().catch(() => {}).then(() => { scoring = false; });
-  }
-
-  /**
-   * THE NOTES' OWN ONSETS. Every pitch carries a counter that goes up when it
-   * is struck again, so a chord is a handful of them going up together — and
-   * a pitch struck quietly is struck all the same, which is what the level
-   * cannot say. See the note at the top.
-   */
-  async function pollNotes(t) {
-    let d = null;
-    try { d = await audio.detectNotes(); } catch (_) { return; }
-    if (!running || !d || !Array.isArray(d.notes)) return;
-    let fresh = false;
-    for (const n of d.notes) {
-      if (!n || !Number.isFinite(n.midi) || !Number.isFinite(n.onsetSeq)) continue;
-      const midi = Math.round(n.midi);
-      const prev = seqSeen.get(midi);
-      seqSeen.set(midi, n.onsetSeq);
-      if (!primedNotes) continue;                       // the first poll is the baseline
-      if (prev !== undefined && n.onsetSeq <= prev) continue;
-      const c = Number(n.confidence);
-      if (Number.isFinite(c) && c < ear.conf) continue;
-      fresh = true;
-    }
-    primedNotes = true;
-    if (!fresh) return;
-    stats.struck++;
-    struck(t);
   }
 
   async function tick() {
@@ -787,12 +812,6 @@ export function createEngineAdapter(port, opts) {
         }
         if (armed && level > onset && level - prevLevel > ear.slope) struck(t);
         prevLevel = level;
-        /* And the notes, on the app's own cadence. `road()` has already been
-         * asked once by then, so this costs nothing on a build without them. */
-        if (await road() && t - notesAt >= NOTES_MS) {
-          notesAt = t;
-          await pollNotes(t);
-        }
       }
     } catch (_) {
       // A transient failure on the bridge: keep polling rather than give up.

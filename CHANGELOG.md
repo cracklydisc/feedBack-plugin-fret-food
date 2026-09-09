@@ -73,18 +73,31 @@ All notable changes to this project are documented here. The format follows
   string a shape asks you to MUTE is now forgiven — it is that shape's own
   known imperfection. Five shapes are built that way and C is the one a player
   meets first.
-- **A strum is noticed by the notes' own onsets, not only by the level.** A
-  session with a guitar kept reporting the C: played, and not always taken.
-  The level detector asks whether the signal climbed sharply, which depends
-  on how hard the room, the pickup and the hand happen to make a chord — and
-  C is the one shape you strum carefully, because `x32010` asks you to miss
-  the low E, so it is the quietest chord a beginner plays. Every note
-  `detectNotes` reports carries an `onsetSeq` that goes up when THAT pitch is
-  struck anew, which is what `notedetect` gates its own chord timing on, and
-  a pitch struck quietly is struck all the same. Both triggers now fire, on
-  the app's own 50 ms cadence, and `MIN_GAP_MS` keeps one gesture from being
-  two. The pitches already ringing when a service opens are a baseline and
-  not a strum.
+- **The fallback says it is a fallback, and it got the work.** Three rounds
+  of fixes went into the notes road while a session kept reporting a chord
+  that would not register — and then the overlay showed `SHAPES`: that build
+  has no polyphonic detector at all, so none of it had ever run there. The
+  header now says which road and why (`no detectnotes`, `ml off`), and the
+  rows show what that road actually had in front of it: the shapes it asked
+  the engine about and what each scored, where the notes road shows pitches.
+  A fallback that does not announce itself costs more than the feature it
+  stands in for.
+- **The shapes road asks about the neighbours too.** Scoring only what the
+  counter wants can answer nothing but a chord somebody ordered, however
+  badly it fits — the flaw the notes road exists to fix, and on a build
+  without the detector this is the road that runs. Every shape that shares
+  most of its strings with something on the counter is now scored beside it
+  (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
+  back as itself. The set is capped at ten shapes a strum: each is a round
+  trip to the engine and the next strum is 375 ms away.
+- **The notes' own onsets were tried as a second trigger, and taken back
+  out.** Every note carries an `onsetSeq` that goes up when that pitch is
+  struck anew, which looked like the answer to a quietly strummed C. It is
+  not: one pitch struck anew is one STRING, so a single sweep fired the
+  naming several times and a ringing note re-triggering fired it again, each
+  one another chance to name something wrong. The session that followed
+  reported more false positives and no change on the C. The reasoning is kept
+  in the file so nobody spends the afternoon again.
 - **The counter breaks a dead heat and nothing wider.** The band was 0.08;
   measured over every shape with a string missing, a stray one ringing or two
   strings gone, that rescues 98.2% against 98.1% for an exact tie — because

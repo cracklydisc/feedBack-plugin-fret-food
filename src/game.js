@@ -520,12 +520,14 @@ async function start({ container, modifiers, sdk }) {
   function diagLines() {
     const s = (current && current.stats) || {};
     const head = [
-      'EAR ' + String(s.ear || '?').toUpperCase() + ' - ' + String(s.road || label).toUpperCase()
+      'EAR ' + String(s.ear || '?').toUpperCase()
+        + ' - ' + String(s.road || label).toUpperCase()
+        + (s.why ? ' (' + String(s.why).toUpperCase() + ')' : '')
         + ' - STRUMS ' + (s.onsets || 0) + ' COOKED ' + (s.named || 0)
         + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0),
     ];
     const rows = (s.last || []).map((r) => {
-      const air = r.air && r.air.length ? r.air.join(' ') : 'NOTHING IN THE AIR';
+      const air = r.air && r.air.length ? r.air.join('  ') : 'THE ENGINE ANSWERED NOTHING';
       const said = r.chord ? label(r.chord) + ' ' + r.fit.toFixed(2) : 'NO CHORD';
       return air + '  -  ' + said + '  ' + String(r.why).toUpperCase();
     });
