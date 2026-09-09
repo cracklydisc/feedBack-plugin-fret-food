@@ -199,19 +199,33 @@ const SCORE_DSP = {
  * have to agree with a shape before it is named (`nameFrom`), and how sure
  * the detector has to be of a pitch before it counts as ringing at all. The
  * confidence is `notedetect`'s own scale, where the app's default is 0.20 and
- * the slider stops at 0.50. */
+ * the slider stops at 0.50.
+ *
+ * `floor` and `dsp` are the shape road's, and there are two of them because
+ * there are two scorers behind `scoreChord`. With the engine's model loaded a
+ * well-played chord comes back with most of its strings confirmed, and
+ * `floor` is where "nothing was played" sits. WITHOUT the model the
+ * constraint scorer over spectral bands confirms far less: measured on a
+ * session's own overlay, chords the player called clean scored 0.40, 0.33,
+ * 0.33 and 0.17 — one or two strings of five or six. Against a floor of 0.42
+ * that is a kitchen where nothing ever cooks, so `dsp` is where the same
+ * sentence sits when the evidence is that thin. It is not a kinder ear; it is
+ * the same ear reading a quieter instrument. What keeps the low number honest
+ * is that the neighbours are scored too (see `NEAR_SHAPES`) and that two
+ * strings is a hard minimum (see `MIN_STRINGS`), so clearing the floor is no
+ * longer enough on its own to be named. */
 export const EARS = {
   easy: {
     pitchCheckCents: 80, minHitRatio: 0.28, harmonicSnr: 2.0, fundamentalRatio: 0.12,
-    floor: 0.34, level: 0.03, slope: 0.02, fit: 0.50, conf: 0.15,
+    floor: 0.34, dsp: 0.20, level: 0.03, slope: 0.02, fit: 0.50, conf: 0.15,
   },
   medium: {
     pitchCheckCents: 65, minHitRatio: 0.34, harmonicSnr: 2.4, fundamentalRatio: 0.15,
-    floor: 0.42, level: 0.05, slope: 0.03, fit: 0.58, conf: 0.20,
+    floor: 0.42, dsp: 0.28, level: 0.05, slope: 0.03, fit: 0.58, conf: 0.20,
   },
   hard: {
     pitchCheckCents: 50, minHitRatio: 0.50, harmonicSnr: 3.2, fundamentalRatio: 0.22,
-    floor: 0.50, level: 0.07, slope: 0.04, fit: 0.66, conf: 0.30,
+    floor: 0.50, dsp: 0.36, level: 0.07, slope: 0.04, fit: 0.66, conf: 0.30,
   },
 };
 
@@ -501,35 +515,61 @@ export function audioBridge(win) {
   return audio;
 }
 
+/* THE SMALLEST CHORD THAT MAY BE NAMED, in strings actually confirmed.
+ *
+ * A shape with fewer strings needs fewer of them confirmed to look good, and
+ * where the scorer confirms one or two that difference is the whole ranking.
+ * From a session's overlay: A7 0.40, Em 0.33, G 0.33 — the SAME two strings,
+ * and A7 leads only because it has five strings where the others have six.
+ * One string is not a chord on any reading, so nothing is named on less than
+ * two, whatever ratio those two make. */
+export const MIN_STRINGS = 2;
+
 /**
  * Picks the chord that fits what was just played.
  *
  * Exported and pure so the choosing can be tested without an engine: hand it
- * the scores and it names the winner. `score` decides, and `hitStrings` breaks
- * a tie — a ratio treats three strings out of three and six out of six as the
- * same fit, and between two shapes that fit equally well the one with more
- * strings confirmed is the one with more evidence behind it.
+ * the scores and it names the winner.
+ *
+ * The strings CONFIRMED rank first and the ratio second, which is the other
+ * way round from how this started. A ratio is the right measure when the
+ * scorer confirms most of a chord — five of six beats three of four, and
+ * should. It is the wrong one when the scorer confirms two of anything,
+ * because then the ratio is reading the shape's SIZE and not the playing, and
+ * the smallest shape on the counter wins every thin strum.
+ *
+ * When two shapes rest on the same strings the evidence cannot separate them,
+ * so the counter does: the one somebody ordered. `wanted` stays a preference
+ * and never a filter — a shape with more strings behind it beats a wanted one
+ * with fewer, always, which is what lets a chord nobody ordered still be
+ * named and still cook nothing.
  */
-export function bestFit(scored, floor) {
+export function bestFit(scored, floor, wanted) {
   const min = floor === undefined ? MIN_FIT : floor;
+  const asked = wanted && wanted.length ? wanted : null;
   let best = null;
   for (const s of scored) {
     if (!s || !s.result) continue;
     const score = Number(s.result.score);
     if (!Number.isFinite(score) || score < min) continue;
-    const hits = Number(s.result.hitStrings) || 0;
+    /* A build that reports no per-string count is judged the old way, on the
+     * ratio alone: `hits` is then 0 for every candidate and every comparison
+     * below falls through to `fretted` and `score`. */
+    const said = Number(s.result.hitStrings);
+    const hits = Number.isFinite(said) ? said : 0;
+    if (Number.isFinite(said) && said < MIN_STRINGS
+      && Number(s.result.totalStrings) > MIN_STRINGS) continue;
+    /* An open string rings on almost anything played in first position, so
+     * what separates two shapes resting on the same count is the FRETTED
+     * strings: the ones the hand had to be holding for them to sound. */
     const fretted = frettedHits(s.chord, s.result);
-    /* Ties are common and they used to go to whichever chord the counter
-     * listed first, which is an answer with no evidence in it at all. An open
-     * string rings on almost anything played in first position, so what is
-     * left of a tied comparison is the FRETTED strings: between two shapes
-     * that scored the same, the one with more of its fretted strings
-     * confirmed is the one the hand was actually holding. `hitStrings` breaks
-     * what is still level after that. */
+    const mine = asked ? asked.includes(s.chord) : false;
+    const theirs = best && asked ? asked.includes(best.chord) : false;
     const better = !best
-      || score > best.score + 1e-9
-      || (Math.abs(score - best.score) <= 1e-9
-        && (fretted > best.fretted || (fretted === best.fretted && hits > best.hits)));
+      || hits > best.hits
+      || (hits === best.hits && ((mine && !theirs)
+        || (mine === theirs && (fretted > best.fretted
+          || (fretted === best.fretted && score > best.score + 1e-9)))));
     if (better) best = { chord: s.chord, score, hits, fretted };
   }
   return best;
@@ -651,10 +691,27 @@ export function createEngineAdapter(port, opts) {
    * two look different on purpose — a player looking at the plate should be
    * able to tell which road is running without reading the header.
    */
+  /* THE SHAPE ROAD'S ROWS, and why a wanted chord is always among them.
+   *
+   * These used to be the four best scores, which are the wrong four when the
+   * question being asked of the overlay is "did the chord I just played come
+   * first?". The shape somebody ordered can rank fifth and never appear, and
+   * then the log says nothing about the only comparison that matters. So the
+   * wanted shapes lead and carry a `*`, and the rest fill what is left.
+   * `2/6` is the strings confirmed out of the strings asked for, which is the
+   * number `bestFit` ranks on — reading it beside the ratio is how you tell a
+   * chord that half-rang from a small shape flattering itself. */
+  function scoreRows() {
+    const all = stats.scores || [];
+    const rows = all.filter((s) => s.wanted).concat(all.filter((s) => !s.wanted));
+    return rows.slice(0, LOG).map((s) => label(s.chord) + (s.wanted ? '*' : '')
+      + ' ' + s.hits + '/' + s.of + ' ' + s.score.toFixed(2));
+  }
+
   function logged(why, best) {
     const saw = notes
       ? heardAir.slice().sort((a, b) => a - b).map(noteName)
-      : (stats.scores || []).slice(0, 4).map((s) => label(s.chord) + ' ' + s.score.toFixed(2));
+      : scoreRows();
     stats.last.unshift({
       why,
       air: saw,
@@ -736,9 +793,15 @@ export function createEngineAdapter(port, opts) {
     }));
     if (!running) return null;
     stats.scores = scored.filter(Boolean)
-      .map((x) => ({ chord: x.chord, score: x.result ? Number(x.result.score) : 0 }))
-      .sort((a, b) => b.score - a.score);
-    const best = bestFit(scored, ear.floor);
+      .map((x) => ({
+        chord: x.chord,
+        score: x.result ? Number(x.result.score) : 0,
+        hits: x.result ? Number(x.result.hitStrings) || 0 : 0,
+        of: x.result ? Number(x.result.totalStrings) || 0 : 0,
+        wanted: wanted.includes(x.chord),
+      }))
+      .sort((a, b) => b.hits - a.hits || b.score - a.score);
+    const best = bestFit(scored, ml === true ? ear.floor : ear.dsp, wanted);
     if (best && !wanted.includes(best.chord) && best.chord !== decoy) {
       // A neighbour of a wanted shape fitted better than the shape itself:
       // what was played is a real chord and it is not on any ticket.

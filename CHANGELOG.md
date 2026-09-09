@@ -104,6 +104,24 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **The scorer with no model behind it is read on its own terms.** The
+  overlay from a session that played cleanly settled the argument with
+  numbers: `SHAPES (ML OFF)`, and rows reading `A7 0.40  Em 0.33  G 0.33
+  E 0.17`, with nine strums of twenty-two `UNDER THE FLOOR`. Three separate
+  faults, all in the band scorer's own arithmetic. It confirms one or two
+  strings where the ML-backed scorer confirms most of a chord, so the best a
+  clean chord could manage sat under a floor of 0.42 and the kitchen cooked
+  nothing: each ear grade now carries a second floor (`dsp`) for the scorer
+  with no model behind it. `score` is `hits/total`, so with the SAME two
+  strings confirmed A7 makes 0.40 where G makes 0.33 — a ranking of how many
+  strings a shape HAS, not of what was played: `bestFit` now ranks on the
+  strings actually confirmed, with the ratio, the fretted strings and the
+  counter breaking what that leaves level, and never names a shape on fewer
+  than two strings whatever ratio they make. `wanted` stays a tie-break and
+  never a filter, so a chord nobody ordered still comes back as itself. And
+  the overlay showed the four best scores, which are the wrong four when the
+  question is whether the chord you played came first — the wanted shapes now
+  lead the rows with a `*`, and every row says `2/5` beside its score.
 - **The notes' own onsets were tried as a second trigger, and taken back
   out.** Every note carries an `onsetSeq` that goes up when that pitch is
   struck anew, which looked like the answer to a quietly strummed C. It is

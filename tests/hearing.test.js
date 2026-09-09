@@ -17,7 +17,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nameFrom, pitchesOf, TUNING, bestFit, frettedHits, createEngineAdapter, EARS } from '../src/input/engine.js';
+import {
+  nameFrom, pitchesOf, TUNING, bestFit, frettedHits, createEngineAdapter, EARS, NEAR_SHAPES,
+} from '../src/input/engine.js';
 import { createPort } from '../src/input/port.js';
 import { SHAPES, CHORDS, label } from '../src/menu.js';
 
@@ -148,6 +150,89 @@ test('a tied score goes to the shape with more fretted strings behind it', () =>
   assert.equal(frettedHits('C', c.result), 3);
   assert.equal(bestFit([em, c], 0.4).chord, 'C');
   assert.equal(bestFit([c, em], 0.4).chord, 'C', 'and the order the counter lists them in does not matter');
+});
+
+/* ── the fallback road, on a scorer with no model behind it ─────────────── */
+
+/** A shape the engine answered for: `hits` of its `total` strings confirmed. */
+const conf = (chord, hits, total) => ({
+  chord,
+  result: { score: hits / total, hitStrings: hits, totalStrings: total, results: [] },
+});
+
+test('the smallest shape no longer wins on the strings every shape shares', () => {
+  /* Straight off a session's overlay: A7 0.40, Em 0.33, G 0.33 — the SAME two
+   * strings on all three. A7 led because two of five is 0.40 where two of six
+   * is 0.33, which ranks the shapes by how many strings they have and not by
+   * anything that was played. */
+  const a7 = conf('A7', 2, 5);
+  const g = conf('G', 2, 6);
+  assert.equal(bestFit([a7, g], 0.28).chord, 'A7',
+    'with nobody at the counter the ratio still breaks what the strings cannot');
+  assert.equal(bestFit([a7, g], 0.28, ['G']).chord, 'G',
+    'but a chord somebody ordered breaks it first');
+  assert.equal(bestFit([g, a7], 0.28, ['G']).chord, 'G', 'whichever order they arrive in');
+});
+
+test('more strings confirmed beats the chord somebody ordered', () => {
+  /* The counter is a tie-break and never a filter. If wanting a chord could
+   * outrank the evidence, every strum would cook something and the game would
+   * stop being about playing the right one. */
+  assert.equal(bestFit([conf('Em', 5, 6), conf('C', 2, 5)], 0.28, ['C']).chord, 'Em');
+});
+
+test('two strings is not one, and one string is not a chord', () => {
+  assert.equal(bestFit([conf('C', 1, 5)], 0.15, ['C']), null,
+    'one string clears a low floor and is still nothing');
+  assert.equal(bestFit([conf('C', 2, 5)], 0.15, ['C']).chord, 'C');
+  // A build that reports no per-string count is judged the old way, on the ratio.
+  assert.equal(bestFit([{ chord: 'C', result: { score: 0.9 } }], 0.28, ['C']).chord, 'C');
+});
+
+test('the scorer with no model behind it is read against its own floor', () => {
+  /* Chords the player called clean came back at 0.40, 0.33, 0.33 and 0.17 on
+   * the band scorer — the best of them under the 0.42 that the model-backed
+   * scorer calls "nothing was played". Two scorers, two floors. */
+  for (const name of ['easy', 'medium', 'hard']) {
+    const e = EARS[name];
+    assert.ok(e.dsp > 0 && e.dsp < e.floor,
+      name + ' needs a floor for the scorer that confirms one or two strings');
+  }
+  assert.ok(EARS.easy.dsp < EARS.medium.dsp && EARS.medium.dsp < EARS.hard.dsp,
+    'and the three grades still get harder in the same order');
+});
+
+test('a chord only the band scorer heard still cooks, and the plate names it', async () => {
+  /* 0.34 is two of C's five strings, which is what a clean C came back as on
+   * the machine with no model loaded. Against the single old floor of 0.42 it
+   * was nothing at all, and nine strums of twenty-two cooked nothing. */
+  const b = bench({ ml: false, candidates: ['C'], scores: { C: 0.34 } });
+  b.adapter.start();
+  await b.play('C');
+  assert.equal(b.adapter.stats.road, 'shapes');
+  assert.equal(b.adapter.stats.why, 'ml off');
+  assert.equal(b.strums.length, 1, 'the kitchen heard it');
+  assert.equal(b.strums[0].chord, 'C');
+});
+
+test('the chord the counter wants is on the plate however badly it ranked', async () => {
+  /* The overlay used to show the four best scores, which are the wrong four:
+   * the shape somebody ordered can rank fifth, never appear, and leave the
+   * log silent about the only comparison anybody reads it for. */
+  const loud = [...new Set(NEAR_SHAPES.C.concat(NEAR_SHAPES.G))].filter((c) => c !== 'C' && c !== 'G');
+  assert.ok(loud.length >= 4, 'C and G have neighbours enough to be outranked by');
+  const scores = { C: 0.34, G: 0.34 };
+  for (const n of loud) scores[n] = 0.95;
+  const b = bench({ ml: false, candidates: ['C', 'G'], scores });
+  b.adapter.start();
+  await b.play('C');
+  const rows = b.adapter.stats.last[0].air;
+  assert.equal(rows.length, 4, 'the plate still holds four rows and no more');
+  assert.ok(rows[0].startsWith('C*') && rows[1].startsWith('G*'),
+    'both wanted chords lead the rows, however they scored: ' + JSON.stringify(rows));
+  assert.match(rows[0], /^C\* 2\/5 0\.34$/,
+    'and a row says the strings confirmed, which is what bestFit ranks on');
+  assert.ok(rows.slice(2).every((r) => !r.includes('*')), 'only the wanted ones are starred');
 });
 
 /* ── the adapter, on a bridge with no clock ─────────────────────────────── */
