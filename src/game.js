@@ -66,7 +66,7 @@ import { createSfx } from './sfx.js';
 import { isTaken } from './kit/shortcuts.js';
 
 const ID = 'fret-food';
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 /* Every event the scene can animate. Forwarded verbatim: the scene decides what
  * is worth a flourish, and this file does not get an opinion. */

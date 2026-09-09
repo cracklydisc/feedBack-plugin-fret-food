@@ -1,6 +1,6 @@
 {
   "name": "feedback-plugin-fret-food",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Tests for Fret Food, the chord-progression kitchen minigame for fee[dB]ack.",

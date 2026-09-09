@@ -1,7 +1,7 @@
 {
   "id": "fret-food",
   "name": "Fret Food",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "script": "screen.js",
   "scriptType": "module",
   "styles": "assets/fret-food.css",

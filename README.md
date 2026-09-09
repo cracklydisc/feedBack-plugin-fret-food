@@ -1,759 +1,82 @@
 # Fret Food
 
-A chord-change arcade game for
-[fee[dB]ack](https://github.com/got-feedback), built on the Minigames SDK.
+A pixel-art chord-change arcade game for [fee[dB]ack](https://github.com/got-feedback).
+Cook orders by playing their chord progressions: practise chord shapes, recall and faster changes while keeping a kitchen running.
 
-Chord changes are the wall every beginner hits, and the standard way to
-practise them is a metronome and a timer: play C, play G, count how many you
-managed in a minute. It works and nobody does it, because there is nothing to
-find out. Fret Food makes the same drill into a service at a kitchen counter.
+**Alpha · v0.2.0** — [Download the latest release](https://github.com/cracklydisc/feedBack-plugin-fret-food/releases/latest) · [Changelog](CHANGELOG.md)
 
-Every customer orders a **dish**, and a dish is a chord progression.
-Three-Chord Margherita is C F G. Two-Five-One Risotto is Dm G C. One-Chord
-Toast is C, four times over, and it is the first thing anybody plays. Every
-name carries the progression it is made of, so the menu teaches while it sells.
+![Current gameplay: refreshed customers and cooks, upcoming chords, fingering diagrams and individual cooking timers](docs/service.png)
 
-**Play the chord the ticket wants and that step is cooked.** One chord heard is
-one step, at once, and the card turns over to the next one. There is nothing to
-count and no rhythm to guess — which is not a simplification, it is the only
-thing the microphone can actually measure. (The onset detector re-arms every
-180 ms whether the string has stopped ringing or not, so one slow sweep across
-six strings arrives as three or four strums; `src/engine.js` has the long
-version of why that killed every rule built on counting.)
+## Play
 
-What makes it hard is the **clock**, and three things follow from it:
+- **Play the requested chord** to cook the next step. One chord can advance several orders at once.
+- **Change before the pot cools.** Late steps lose quality and tips; an empty pot loses the customer. Three lost customers end a regular service.
+- **Read ahead.** Each chalkboard shows the current chord, the next two and a count of further steps. Full barre F is labelled **F BAR**.
+- **Build your score** through served dishes, combo and clean cooking. Choose your pace and one to five burners before starting.
 
-- **The pot is the clock.** Cooking a step fills it, and it drains at the
-  burner's rate. Above the line the next step comes out clean; under it the
-  step still cooks and the dish is spoiled — a star, and the tip. At zero the
-  customer leaves, and three lost customers close the service. Nothing you play
-  correctly ever does nothing.
-- **A harder change is given more room.** Every finger that has to move buys
-  time before a step counts as late, so C to F gets four seconds where C to Am
-  gets two and a half. The drill measures the hand and not the fingering.
-- **One chord feeds every pot that wants it.** When two orders sit on the same
-  step, playing it once cooks both, and both cards say `2 POTS` so you can see
-  the play coming. That is the only greedy decision in the game, and it is
-  where the points are.
+## Practice your way
 
-Money is the score. A dish pays its price times your chain, plus a 25% tip if
-it left the pot without a single dirty strum.
+| Mode | What it does |
+| --- | --- |
+| **Service** | Arcade progression through harder shapes and a busier counter. |
+| **Practice** | No strike limit. New shapes arrive in short recipes before competing orders return. |
+| **Loop** | One pair, one untimed pan: six changes in each direction, then a report. Uses comparable observations, or starts with C ↔ G. |
+| **Sprint** | A three-minute service, unlocked through the host's progression. |
 
-![Five long recipes with full upcoming chord names, readable quality stars, animated cooks and refreshed customers](docs/service.png)
+![Current start menu with pace, burners, mode and Guided or Memory assistance](docs/options-plate.png)
 
-*Illustrative five-station scene with eight-step recipes and different urgency levels.*
+**Guided** keeps diagrams visible. **Memory** keeps chord names visible and hides fingerings until you click a board or press **H**. Help stays visible for that target; assistance is fixed once the service starts.
 
-*Closing Time, four pots. Every card is a ticket and a fingering, every pot a
-clock, two of them want the same B flat, and the bell has just paid a perfect
-service.*
+The compact recap shows your results and next practice, with expandable details: directional medians, sample counts, errors, hints and previous-session comparisons. Recommendations require at least **five eligible observations** in a matching context. Initial waits, retries and requested hints do not enter the median. Service timings include choosing between orders and stay separate from isolated exercises.
 
-**Status: alpha.** Built and verified against the fee[dB]ack desktop build
-with a guitar; the balance is measured by an automatic player rather than
-felt. Only the guitar scores: the keyboard and the scripted player exist for
-development and report nothing to the hub.
+Only guitar input can score on the host. Memory records are **local and separate** because the current host leaderboard has no assistance categories. Practice, Loop and development inputs do not score on the host.
 
----
+<details>
+<summary>Service closing screen</summary>
 
-## What it practises, honestly
+![Current service closing screen](docs/service-closed.png)
 
-The dish list is built from real chord shapes, and every price is computed from
-the fingers that actually move between the shapes in the recipe, not chosen by
-hand. One-Finger Crostini (C, Am) pays $8 because it is one finger.
-Three-Chord Margherita (C, F, G) pays $26 because it is seven, and one of them
-is F.
-
-Difficulty climbs on two axes and they are deliberately separate. Recipes get
-LONGER — two steps at the opening, eight by Saturday night. And the shapes get
-HARDER: open position first, then the partial F, then the sevenths, then a
-first barre at the first fret, then full barres, and last the same barres moved
-up to the fourth and sixth frets, where the diagram stops drawing a nut and
-starts printing the fret it begins at. A four-chord dish of C Am F G is long; a
-three-chord dish of Bb F C is hard, and until the shapes had a level of their
-own the game had no way to say so.
-
-The menu is **a hundred and sixteen dishes**: twenty-eight written by hand,
-because Canon Cannoli is Pachelbel and Twelve-Bar Beans is a twelve-bar blues
-and no generator was going to come up with those, and the rest invented from a
-key and a pattern of degrees. Ten a tier, which is where the measurement stops
-paying: past that the Opening gets more tickets and not one more change in
-them. No two dishes share a recipe, or a name.
-
-The shapes come first, and the pans after. The whole ladder of shapes is
-climbed on the opening's two pans, one tier a service — the partial F at Lunch,
-the sevenths at Lunch Rush, the first barre at Afternoon, the full barres at
-Happy Hour, the neck at Dinner — and only then does the counter grow, one place
-a service: three pans at Late Dinner, four on Saturday Night, five at Closing
-Time. Nine services of **forty-five seconds** each — the last tier of shapes at
-3:45, the third pan at 4:30, the whole counter at 6:00. They were a minute, and
-measured against a real player that put the pan half of the ladder past where
-runs end: a session played at three pans and never once saw the third. A tier
-or a pan dealt out past the end of a service is content nobody meets. This is a
-chord-change drill, and what a
-novice has to get good at is the changes: a third pot before the neck is done
-teaches juggling instead. The second pan stays through the ladder because two
-pots wanting one chord is the one greedy play, and because a round trip has to
-exist for the clock to mean anything.
-
-Whoever wants fewer pans than that has the options plate: **Burners** caps
-the counter at one to five places for the whole service, and the flames still
-climb. One pan is the drill with nothing else on the screen.
-
-**The kitchen cools when the menu changes.** The flames climb from the first
-bell to the last, so the hardest shapes used to arrive at the tightest clock
-in the game: a pot lived twelve and a half seconds at the Opening and four by
-Closing Time, and the barres were dealt at six while C to Am had twelve. That
-is the difficulty curve upside down, and a session said so — *I lose before I
-have played all the chords*. So a bell that unlocks a TIER OF SHAPES takes the
-burner back down instead of pushing it up, and a bell that opens a PLACE
-climbs as it always did:
-
-| bell            | 1    | 2    | 3    | 4    | 5   | 6   | 7   | 8   | 9   |
-|-----------------|-----:|-----:|-----:|----:|----:|----:|----:|----:|----:|
-| before          | 12.6 |  9.6 |  7.5 | 6.2 | 5.2 | 4.4 | 3.8 | 3.4 | 3.0 |
-| now             | 12.6 | 11.6 | 10.8 |10.0 | 9.4 | 8.8 | 6.7 | 5.4 | 4.5 |
-
-Seconds a pot lives; the first six bells are the tiers of shapes and the last
-three are the pans. A new shape is met with about as much time as the last new
-shape had, and the pressure comes back when the counter grows — which is the
-round trip, not the hand. Measured: a slow hand on two pots lasted four to
-seven minutes and now lasts eight to nine.
-
-**How long you actually get, per dish.** The number on a card is seconds, and
-this is what it says when a customer sits down, averaged over a service at the
-normal pace:
-
-| level   | 1    | 2    | 3   | 4   | 5   | 6   | 7   | 8   | 9   |
-|---------|-----:|-----:|----:|----:|----:|----:|----:|----:|----:|
-| seconds | 11.4 | 10.6 | 9.8 | 9.3 | 8.7 | 8.2 | 6.2 | 5.2 | 4.5 |
-
-Relaxed is a third more, rush a fifth less. Inside a level the drift is small:
-the first customer of the opening gets 12.6 s and the nineteenth 10.4.
-
-**Reading a card is not idling.** Past five beats with no strum the pots go
-down half as fast again, which is there to stop a player standing still. It
-used to be three beats at DOUBLE, and measured from the player's chair that
-was brutal in a way nothing on the screen explained: the card shows the
-seconds at the current rate, so at 2.25 s the number being read halved and
-then fell twice as fast. On relaxed a fresh pot went 16.2, 14.2, then 6.9 and
-5.4 — and a pot promising sixteen seconds really lasted nine. Four seconds is
-reading a new card and putting a hand on the neck, which is what a beginner
-does at the start of every dish. So the rule bites later and gentler, and a
-pot the hand has **never fed** is not on that clock at all: a customer who has
-just sat down goes down at their own rate until you have answered them once.
-The card and the customer now agree — it says 16.2 and they leave at 16.0.
-
-**The plates on sticks.** With two pots or more the round trip is what kills:
-cook one pot cleanly and the others cool the whole while, so a player who plays
-one ticket well loses the rest. So every step cooked hands the OTHER pots a
-fifth of a full pot between them — two pots, the whole fifth every time; five,
-a twentieth each. Enough that a player who plays in turn keeps them all, not so
-much that camping on one saves the rest: a fifth is a fifth, not a reset.
-Handed whole to each pot instead of split, the automatic player never lost a
-customer in ten minutes, and a service has to be able to end.
-
-**Every open chord from the first tier, and drills.** Em and D sat at the third
-and fourth tiers with the sevenths and the first barre, E and A at the third,
-so a player who knew every open chord met none of them until minute three and
-every service opened on C and G. The six open shapes with two or three fingers
-are the first tier now — C, Am, G, Dm, Em, D — and A, E and the partial F the
-second. And half the invented dishes at every tier are drills: two or three
-shapes of that tier in a random order, named for their changes (E-to-A
-Frittata, D-G-D Skewers), because this is a drill of changes and a change does
-not need a harmony to be worth practising.
-
-**Nine more shapes for the changes themselves.** Cadd9, Gsus4, Dsus4, Asus2,
-Asus4 and G/B are the small movements a hand practises between the chords it
-already knows — Cadd9 shares three fingers with G, Dsus4 is D with one finger
-more, G/B is the bass stepping from G down to C — and they sit in the first
-two tiers beside the shapes they belong to. B and G#m finish the keys of E and
-A up the neck. And F has two fingerings: the small one at the second tier and
-the whole barre at the fourth, written `F BAR` on the card and in the preview, so it can be told apart
-from the partial F before its diagram appears. Five dishes are written
-on them — Suspended Toast, Add-Nine Bruschetta, Suspended Skewers,
-Walking-Bass Focaccia, Full-Barre Bistecca — and the drills draw them like
-any other shape of their tier.
-
-Every recipe has its own pan and its own ingredients, and there is one
-ingredient per step. Cook a step and the next one goes in, so the pan fills as
-the progression advances: a stockpot of minestrone and a pizza stone read as
-different jobs from across the counter, and a glance at either says how far
-that order has come without reading a word. It is the mechanic, drawn, rather
-than decoration laid on top of it.
-
-A change that is both far and rushed comes out dirty: it leaves soot, soot
-makes the pot cool faster, and soot costs you the tip. That is not a penalty
-invented for the game, it is what the chord detector hears when you jump onto a
-shape without giving your hand the beat to get there.
-
----
-
-## The screen
-
-Each station shows the order ticket, the current chord and its fingering,
-the next two chords, a heat bar with a fixed readiness tick, the pot and
-its flame. Below three seconds, only the timer gains a red warning background;
-its digits stay visible. Compact parchment orders carry the quality stars.
-Under the pan, a quiet price tag shows the current payout and a `-1` star
-warning if playing now would spoil the step. Actual `-1 STAR` / `COOKED`
-feedback briefly replaces that tag, without moving over the heat bar or pan.
-The unobstructed heat gauge is green when ready and amber below its tick.
-
-The **next two strums** are written directly across the top of the existing
-chalkboard, read left to right. Equal-width open chalk brackets keep the names
-centred without separate panels; gold lettering marks the immediate next chord.
-`+N` has its own space after a chalk divider and counts the steps beyond the two shown. `Cadd9`, `Gsus4` and `Dsus4` remain complete even in eight-step
-orders; repeated chords remain separate steps. A counter below the current
-chord shows progress; the final step says `LAST STEP`. The partial F stays `F`;
-the six-string version says `F BAR`, so the hand can prepare for the barre.
-
-Both line cooks use animations authored at their native 48×30 resolution,
-with independent skillet and stirring gestures. The canvas keeps pixelated
-presentation at fractional window sizes; integer scales give the most even pixels.
-
-The guitarist retains the original 60×104 illustration. Four picking poses
-animate its hand and sleeve over a 300 ms gesture, triggered by input rather
-than looping. Missed and rough chords move the hand too; pause holds the pose
-and reduced motion keeps it still.
-
-The chalkboards use warm charcoal and yellow accents; open-string markers
-are yellow too, while cyan remains for sound feedback. Both cooks stand behind
-the main worktop, with its front edge covering their aprons, wooden prep boards
-and warm work lights. Kitchen tools have distinct native-pixel silhouettes.
-
-All 17 seated customers have four reactive poses, individual place settings,
-subtle breathing and expressions that react to waiting, cooking and service.
-The 18 standing crowd figures and the doorway queue share the refreshed art.
-Background guests form quieter groups, leaving space behind seated faces.
-Quality stars have gold centres, dark outlines and hollow lost-star silhouettes.
-The shipped RGBA sprites are tested for opaque torsos.
-
-On the right of every ticket is the fingering for the chord that ticket owes:
-six strings, four fret spaces, a numbered dot per finger, `o` and `x` over the
-open and muted strings, one bar where one finger lies across the neck, and the
-fret number instead of a nut when the shape sits further up.
-
-It is the one panel of this game that is **not pixels**. Everything else is
-drawn into a 480×270 buffer and blown up, because that is what makes it a game
-and not a form; the diagram is drawn as SVG on a layer over the canvas, in the
-same coordinate system, and rendered at the real resolution of the screen. A
-fingering is not scenery, it is the instruction, and at three pixels a digit the
-instruction was a smudge — a bigger pixel diagram was just a bigger smudge.
-
-`node tools/chordsheet.mjs > docs/chords.svg` writes every shape in the game on
-one sheet, drawn by the same code, grouped by the level it is unlocked at.
-
-The strip under the dining room carries the price multiplier, the combo and
-one line the game uses to speak: the rule while it is new, `SILENCE - THE POTS
-COOL TWICE AS FAST` when you stop playing (they do: it is the one rule nothing
-else on the screen shows), the keys when the keyboard is what is talking, and
-a plain word when the window is too small to read a fingering in.
-
----
-
-## Opening, pausing, closing
-
-**The kitchen opens at the first chord.** The first customer sits down and
-waits, the card says `PLAY` where the seconds will be, and the sign over the
-door says `CLOSED`; nothing cools and no clock runs until you play. The first ticket is a
-dish with no change in it and the second has one change, so the first minute
-teaches the rule before it tests you on it. In a first service three short
-notices say what just happened the first time it happens: a step cooked, a step
-under the line, one chord feeding two pots. They are never said again.
-
-**`P` pauses.** So does the window losing focus or its tab becoming hidden.
-The scene freezes too, preserving notes and ingredients in flight until resume. The hub's Quit button holds the
-service and asks; a second click closes it and the takings are recorded, not a
-zero.
-
-**A pace and a counter are chosen before the service**, on the options plate
-below: relaxed, normal or rush, and one to five burners. The pace moves two
-numbers — how fast a pot drains and how fast the flames climb — and nothing
-else, so the line, the grace per finger and the prices are the same game at
-every pace.
-
-**A lost customer can be won back.** Three lost and the service closes, but
-eight dishes served clean in a row — with the tip, not a star lost on any of
-them — bring one back, and the ticket lights up again on the bar. The strip
-counts them down while somebody is lost. A dish that lost a star breaks the
-run, and so does losing somebody else.
-
-**A perfect service pays.** A level that ends with something served and nobody
-lost adds a quarter of its takings, and the bell says so in gold.
-
-**The critic.** From the second service on, now and then, a customer with a
-gold-edged bubble orders the hardest dish the counter can ask for and pays
-three times for it. Losing them is a strike like any other. They start visiting
-once the hub has counted 300 dB across its games; the sprint opens at 1000 and
-the signature menu, nine invented dishes a tier instead of six, at 2500.
-
-![The options plate over the dining room: pace, burners, mode and Guided/Memory assistance, with the first ticket waiting below](docs/options-plate.png)
-
-**The options plate.** Pace, burners, mode and assistance are chosen in the
-game, on a plate over the dining room, while the first customer already sits
-with their ticket up. Every value has a sentence under it that says what it
-does to the kitchen and what it does to the score, the plate adds the
-multiplier up, and a sprint not yet earned can be read but not taken. Arrows
-and Enter, a click on a chip or on START, or the first chord — which closes
-the plate and opens the kitchen in one gesture. The choice is kept for next
-time; `?fretfood_pace=`, `?fretfood_pans=` and `?fretfood_mode=` preselect
-it. The hub's own picker asks nothing any more — the manifest declares no
-modifiers — and since the hub reads the manifest at startup, a host that was
-already running shows the old rows until it restarts.
-
-**Modes.** *Practice* has no strike limit and introduces a new shape in a
-short recipe using an already encountered anchor. Other orders wait until that
-introduction finishes; subsequent recipes and extra burners still follow the
-existing tier schedule. Introduction failures and abandoned exercises are
-reported separately. This is an introduction within the current practice
-session, not a claim that a shape has been mastered.
-
-*Loop* is a short, isolated pair exercise: for C→F it deals C F C F…C, with
-six measured changes in each direction after the starting chord. Only one
-pan is active, it does not cool, and the exercise ends after twelve changes.
-The pair comes from comparable recent observations, with at least five eligible
-samples. Without enough data the explicitly shown starter pair is C→G.
-A service result can suggest a pair to investigate, but its samples are never
-pooled with isolated drill timings. *Sprint* remains three minutes from the
-first chord. Practice and loop are not scored on the hub.
-
-**Assistance.** The fourth menu row chooses **Guided** (fingering always
-visible) or **Memory** (chord names remain visible, fingering starts hidden).
-Click an individual board to reveal that target, or press `H` for all current
-targets. A revealed diagram stays until that target advances. There is no
-automatic reveal or change of assistance after the service starts.
-
-The current hub has one global leaderboard per game, without assistance
-partitions. Guided runs retain the existing hub score. Memory keeps arcade
-cash and combo, but reports zero to that shared leaderboard and maintains a
-separate local record. Local records are partitioned by mode, assistance,
-input, ear setting, profile, pace and counter size. Practice and loop store
-learning results without a cash record.
-
-**The score is the takings scaled by what was chosen** — relaxed 0.75, rush
-1.25, one to five burners 0.5 to 1.0 — so a personal best is not beaten by
-choosing an easier service. The summary shows the arithmetic.
-
-**Sound.** Every sound is a knock, not a note: a game played into a microphone
-cannot afford a chime the engine would score as a string. `M` mutes.
-
-**The ear.** With the guitar, the first chord of the service is heard with the
-middle ear and decides which grade this guitar gets for the rest of it. Pin a
-grade on the settings page if it hears too little or too much; the settings
-page also has the sound. And the hand holds its shape: the
-ear asks which of the chords on the counter fits best, so once the G has
-cooked and the counter wants C and Am, the next strum of the same G would be
-called whichever of those it resembles most — a G that also cooked the C on
-the next ticket was this. The chord last named stays in the line-up for as
-long as it takes, and a strum that still fits it best is the hand still there,
-not a new chord; only a chord that beats it is a change, and no change is
-believed a quarter of a second after the last strum.
-
-**When the service closes** the card shows an eligible median change and its
-sample count, or says more observations are needed. The detailed summary keeps
-service decision time, single-pot practice and isolated pair drills separate.
-It reports each direction's median, eligible/total observations, clean
-repetitions, attempts preceded by an error and requested hints. Initial waits,
-customer turnover and interruptions are excluded from directional timing;
-retries and revealed targets are counted but excluded from the timing median.
-Correct first attempts and help requests are also counted per target.
-
-A comparison with the previous session uses matching chords and the same
-context. It shows observed first attempts, not a mastery score. Pair
-recommendations need five eligible observations and use the median, never a
-single slow attempt or the mean. The bounded local history keeps 24 sessions
-and up to 100 recent timing samples per direction per session. Old mean-only
-reports do not feed recommendations. Use `?seed=` to repeat the same service.
-
-![The closing card: the house mark, takings, served and lost customers, best combo and service number](docs/service-closed.png)
-
----
+</details>
 
 ## Install
 
-Your fee[dB]ack plugins directory is:
+1. Download `fret-food-v0.2.0.zip` from the [release page](https://github.com/cracklydisc/feedBack-plugin-fret-food/releases/latest).
+2. Extract its `fret-food` folder into the plugins directory used by your fee[dB]ack installation. The result should be `plugins/fret-food/plugin.json`.
+3. Restart fee[dB]ack and open **Fret Food** from Minigames.
 
-- **Windows** `%APPDATA%\feedback\plugins\`
-- **macOS** `~/Library/Application Support/feedback/plugins/`
-- **Linux** `~/.local/share/feedback/plugins/`
+Real guitar input requires the **desktop app's native audio engine**. Browser previews use keyboard or scripted input. The plugin needs no bundler or build step.
 
-### With git (recommended)
+## Controls
 
-```bash
-cd <your plugins directory>
-git clone https://github.com/cracklydisc/feedBack-plugin-fret-food.git fret-food
-```
-
-Updating is `git pull` in that folder. The folder has to be called
-`fret-food`: the host serves a plugin's assets under its folder name, and that
-is the `id` in the manifest.
-
-### Without git
-
-Download the repository as a ZIP from GitHub, unpack it, rename the folder to
-`fret-food` and move it into the plugins directory.
-
-Then restart fee[dB]ack. The game appears as a tile in the FeedBarcade hub,
-and its settings page — the ear and the sound — under Settings → Plugins.
-
-### It needs the hub, the desktop build and a guitar
-
-The **Minigames** plugin ships with fee[dB]ack and is the hub the tile lives
-in. Chord input comes from the desktop build's native audio engine, which
-scores a chord shape against the live signal (the section on the guitar below
-says why nothing else worked). Where no guitar can be heard — a browser, the
-dev server — the game says so and the kitchen stays closed: there is no
-keyboard fallback, because a service played on the C key is not a service and
-the hub would count it. The keyboard and the scripted player are the
-developer's inputs, reached from the address, and they never score.
-
----
-
-## The guitar, and how long it took to find
-
-**It works, on the desktop build, with the guitar plugged in.** It took four
-attempts to get there and the first three are worth writing down, because all
-three were reasonable and all three were the wrong question.
-
-The Minigames SDK offers `sdk.scoring.createChord()`. It is a re-emitter over
-`window.createNoteDetector`, and that detector judges against a chart: it needs
-a song loaded and a playhead running. The SDK's own source says so — "minigames
-using them must run alongside a chart (createNoteDetector needs a highway).
-Chart-free discrete scoring is out of scope until the scoring-core extraction PR
-lands." From there, three roads out:
-
-- **A synthetic chart** built from the chords currently wanted. The judgment is
-  taken relative to the playhead and retires an unplayed note as a miss, so
-  there is no grid spacing that gives one strum one event.
-- **`createContinuous`** is chart-free but it is YIN, monophonic: one
-  fundamental per frame. C and Am produce the same row of numbers.
-- **`setVerifyTarget`**, which does score a chosen shape against live audio with
-  no playhead, holds one target, fires every frame while the chord rings, and
-  judges against a threshold fixed at half the strings. Its event's `notes`
-  field echoes back the target you asked about, so there is no way to take the
-  per-string detail as a raw sensor either. A judge that cannot tell C from Am
-  cannot drive a game whose whole subject is which chord you played.
-
-All three roads start from the SDK, and the SDK is not where the answer is.
-**Strum Fighter**, a FeedBarcade game on the same machine that hears chords
-perfectly well, has been going round it all along:
-
-```js
-window.feedBackDesktop.audio.scoreChord({ notes: [{s, f}, …], … })
-// → { isHit, score, hitStrings, totalStrings, results[] }
-```
-
-The desktop build's native audio engine scores the **current live audio**
-against any chord shape, with no chart, no playhead and no song. With
-`audio.getLevels()` beside it, that is exactly the two halves this game needs,
-and `src/input/engine.js` is the adapter:
-
-- **When did you strum** — the input level polled at 60 Hz, with a strum read as
-  a sharp rise above a *rolling background* rather than a fixed floor, and a
-  re-arm so a ringing chord is one strum and not thirty. Those constants are
-  Strum Fighter's measured ones, kept identical on purpose.
-- **Which chord was it** — Strum Fighter only ever asks about one shape, because
-  it is a shooter aimed at one enemy. This game has one to five pots wanting
-  different chords, so it scores **every** candidate and takes the best fit.
-  That is the whole difference, and it is what makes the fixed `minHitRatio`
-  stop mattering: we never ask "did this pass", we ask "which of these fits
-  best". The open strings are scored with the shape, which is what makes the
-  comparison sharp — play C and Am's expected open A comes back wrong.
-
-### And then a fifth road, which is the one it runs on
-
-Two sessions with a guitar reported the same thing: *I play the same chord
-over and over and it unlocks different chords*. The road above cannot help
-doing that, and it is worth being precise about why, because the fault is in
-the question and not in the engine.
-
-It asks **how much of each WANTED shape rang**. So a chord nobody wants can
-only ever come back as one of the chords somebody does — play a C while the
-counter wants Am and G and the answer is Am or G, whichever rang more of
-itself. And what rings is not neutral: an **open string sounds on almost
-anything played in first position**, and Em is four open strings out of six,
-G three. They collect most of their ratio for nothing.
-
-The engine has a second thing to offer and it is the better one:
-
-```js
-window.feedBackDesktop.audio.detectNotes()
-// → { notes: [ { midi, confidence, onsetMs, onsetSeq } ] }
-```
-
-That is the polyphonic ML detector reporting the pitches **actually ringing**
-— `notedetect` gates its own chord timing on it. With the pitches in hand,
-naming a chord stops being a similarity contest and becomes arithmetic. A
-shape is a set of pitches; for each of the game's shapes, how much of the
-shape is in the air (recall) and how much of the air the shape accounts for
-(precision), and the best harmonic mean wins. Both halves are needed: C and Am
-share four of their five pitches, so recall alone cannot tell them apart, and
-what does is the one pitch that differs — a C3 is ringing and Am has no C3 in
-it.
-
-The result is a chord named as **itself**, out of the whole vocabulary. Play a
-C while the counter wants Am and G, and the answer is "a C, which nobody
-ordered": no pot heats, nothing is charged, and the next strum of that same C
-is the hand still holding it rather than a change. Twenty-eight shapes, every
-one of which names itself exactly and none of which names another — that is a
-test, not a hope.
-
-Two things the pitches alone cannot settle, and both were found by measuring
-every shape in the game with a string missing or a stray one ringing:
-
-- **The string a shape tells you to mute.** C is `x32010`: the low E is muted,
-  and a beginner's thumb damps it about as often as not. A strummed low E is
-  the loudest string on the guitar, so the detector reports it, and it used to
-  count as a note the shape does not explain — a clean C came back 0.87
-  instead of 1, and a C with one more thing wrong came back 0.76. Five shapes
-  are built that way (C and Am mute the low E; Dm, D and F mute the low E and
-  the A) and C is the one a player meets first. That string ringing is now
-  forgiven: it is the shape's own known imperfection, not a stranger.
-- **The third.** Every tie in the vocabulary is one — twenty-one of them. Am
-  without its C4 is the pitches of an A, Em without its G3 an E, Dm without
-  its F4 a D, and not one of them turns on the bass. In open position the
-  third sits on a thin string where a tired finger leaves it. When two shapes
-  come within a hair of each other the pitches have said all they can, so the
-  counter is asked which of them somebody ordered. Measured: 143 of 144
-  degraded shapes come back right when the counter wants them, and all 756
-  whole shapes still name themselves when the counter wants something else.
-  The counter never talks the ear out of a chord it plainly heard.
-
-### Where the chords come from, and what a machine needs
-
-Worth stating plainly, because it decides what a player has to install.
-`audio.scoreChord`, `audio.detectNotes` and `audio.isMlNoteDetection` are the
-**desktop build's native audio engine**, not the Note Detection plugin — the
-plugin consumes them exactly as this game does.
-
-**The model is bundled, and it is switched off.** Spotify's **Basic Pitch**
-ships inside the desktop build at `resources/models/basic_pitch.onnx`, loaded
-at startup beside `onnxruntime.dll`; there is no download, no setting, and
-nothing for a player to install. But it is the most expensive thing in the
-audio engine, so the pipeline is left **suspended** — the default path scores
-through the harmonic-comb verifier and nothing reads ML, and a tuner left open
-on a desk runs no inference. `isMlNoteDetection()` reports that suspended
-state as `false`.
-
-Which is a `false` this game spent three sessions misreading as "this machine
-has no model", on a machine that had the model, its published SHA-256 and the
-ONNX runtime sitting beside it. Nobody had asked for it. The ask is one call:
-
-```js
-window.feedBackDesktop.audio.setNoteDetectionEnabled(true)
-```
-
-It is **refcounted across the whole app** in `window.__ndShared.mlGateWanters`
-— notedetect's own set — because one consumer disarming must never suspend
-the detector for another still reading it. Any plugin that wants ML joins that
-set rather than flipping the bridge behind its back, and gives its hold back
-when it closes. This game asks when the service opens and gives it back when
-the service closes; **a minigame that never asks gets the band scorer**, which
-is the whole of what was wrong here.
-
-So the three cases are these, and only the last one is about the machine:
-
-| the engine | this game uses | how good |
-|---|---|---|
-| armed, with `detectNotes` | the notes: the pitches ringing, named against the whole vocabulary | best |
-| armed, no `detectNotes` | the shapes, scored by the engine's **ML-backed** scorer | good |
-| model absent or failed to load | the shapes, scored by the constraint scorer over spectral bands | workable |
-
-`scoreChord` has both scorers behind it and picks by what is loaded — unless
-you send `bypassMl`, which forces the second. This game sent it on every
-call, copied from a game that only ever asks about one shape, and a session
-reported what the band scorer is documented to do: chords that would not
-register and false positives on their neighbours. `notedetect` sends that
-flag for SINGLE notes and its verify target, where the ML path "silently
-drops fast notes", and deliberately not for a chord. A chord is what this
-game asks about, so it now asks the way the app asks.
-
-Which case a machine is in shows in the app's own console at startup —
-`[audio] ML note detection model loaded from …`, and `[note_detect] desktop
-bridge active — ML detection: ON` once something has armed it — and in this
-game's own overlay, which names the road and why it is not the other one.
-`ML OFF` there means the host has no way to be asked; `ML ASKED, STILL OFF`
-means it was asked and said no, which is the only one of the two that is
-really about the model.
-
-The shapes road also asks about the **neighbours** of what the counter wants:
-scoring only the wanted shapes can answer nothing but a wanted shape, however
-badly it fits, so every shape sharing most of its strings with something on
-the counter is scored beside it. Ties there are broken on the fretted
-strings, since the open ones are nearly free.
-
-**Two chords a semitone apart are two chords a semitone apart.** D and Dsus4
-differ by one note on the high E, and so do Dm and D, Am and A, Em and E:
-sixteen pairs in the vocabulary sit one string apart. When the detector
-rounds that string the wrong way the game hears the wrong chord, and no rule
-here can forgive one of those pairs without forgiving all of them — a
-tolerance wide enough to call a Dsus4 a D is wide enough to call an E an Em,
-which is the distinction the whole drill is built on. What the game does
-instead is narrow: when two shapes fit the air EXACTLY as well, which happens
-when the one string that separates them is the one that did not sound, the
-counter is asked which of them somebody ordered. A dead heat and nothing
-wider — measured, a wider band rescues a tenth of a percent more and spends
-it letting the counter speak where the ear had an opinion.
-
-**And you can watch it.** `I` opens a plate over the dining room with the
-counters — strums heard, cooked, held, too quick, unnamed — and the last few
-things the ear had in front of it: the pitches, what they were called and how
-well they fitted. It is the only way to tell a strum the detector never
-reported from a chord this code named wrongly, and those two have different
-owners.
-
-The fit becomes the strum's `quality`, and **under `RULES.CLEAN` (0.8) the
-strum cooks nothing at all**. It used to cook the step and take a mark of soot
-for it, which was the right bargain while the ear was the weak link: a muted
-string the DETECTOR imagined would have cost a star that was really earned.
-With the engine's ML detector armed the naming is precise, and the rule a
-session asked for is the other one — *o passa o no, così devi imparare a
-suonarli puliti*. Soot is now only ever LATE.
-
-It is deliberately not a strike, and not a miss either. The ear can be right
-about WHAT was played and wrong about how well, so the pot going on draining is
-the whole of the punishment, and the check happens before the counter is even
-looked at. The overlay counts it as `MUDDY` beside `UNNAMED` — the hand failing
-next to the ear failing — and the closing card carries the same number, because
-a threshold you cannot see from the chair is one nobody can tell you is wrong.
-
-It needs the **desktop app** — the scorer lives in the native engine. In a
-browser or the dev server the adapter says so through `status { ready: false }`
-before it opens anything, and the game says `NO GUITAR CAN BE HEARD HERE` and
-keeps the kitchen closed, with a badge that tells the truth. `?fretfood_ear=easy|medium|hard` loosens or tightens the
-ear; the three grades are Strum Fighter's measured tiers, and the middle is the
-default because the sharpest ANSWER is not in the same place as the kindest
-threshold.
-
----
-
-## The two development sources
-
-The engine does not know where a chord came from. Two more sources are wired to
-the same port, for building and measuring the game without a guitar in the
-room. **Neither scores**: a run from the keyboard or the script reports zero
-to the hub whatever it took, its summary says so, and neither is offered
-anywhere a player looks — the address is the only way to them.
-
-- **Keyboard.** `?fretfood_input=keys`. `c d e f g a b` are C, Dm, Em, F, G, Am,
-  B7; `1 2 3 4` are A7, D7, E7, G7 and `5 6` are Bb and Eb; `7 8 9` are Gsus4,
-  Dsus4 and Cadd9, `q w` Asus2 and Asus4, `r` the whole F, `y` B, `u` G#m and
-  Shift-G is G/B; hold Shift for the
-  other chord of that letter — `A E D` for the majors, `B F C` for Bm, F#m and
-  C#m. Ctrl makes a strum dirty, `x` is a strum nobody wants, `0` switches a
-  realistic detector's flaws on and off.
-- **Script.** `?fretfood_input=scripted&profile=real&seed=7`. A whole service
-  plays itself, with the same latency, wrong chords and dropped strums a real
-  detector produces.
-
-The script source is not a demo mode. A game you drive by playing cannot be
-retested by hand every time a number changes, so the balance is measured by
-running services headless:
-
-```bash
-node tools/run.mjs --input bot --profile real --seed 7 --seconds 600
-```
-
----
-
-## Balance, measured
-
-The automatic player runs whole services headless, so the balance is a number
-and not an opinion. Seed 7, ten minutes of clock, one run per detector profile:
-
-| detector      | lasted | level | takings | clean steps |
-|---------------|-------:|------:|--------:|------------:|
-| perfect       |  596 s |    10 | $69,400 |         92% |
-| latency only  |  549 s |    10 | $60,390 |         97% |
-| realistic     |  532 s |     9 | $55,836 |         96% |
-| worst         |  501 s |     9 | $42,038 |         96% |
-
-The point of that table is the shape, not the numbers: a bad ear costs money
-and clean steps, and does not break the game. It also says what ends a run.
-What actually runs out is the round trip: with five pots a lap of the counter
-takes 5 to 9 seconds and a hot pot only lives 9, and the fifth of a pot the
-other pots get back per step cooked stretches that without removing it. You
-run out of hands, not of heat. With strikes switched off the same player
-reaches level 10 of 9 (the last service repeats) and loses 8 customers, which
-is the same statement from the other side — with the fifth handed whole to
-every pot instead of split, it lost none, which is why it is split. The
-automatic player is not a novice: it changes chord in a third of a second, so
-what it measures at nine minutes is the round trip and not the hand. A
-beginner meets the same wall with fewer pots, which is what the plate's
-burners are for; a slow hand on two pots — 0.7 s a change plus a quarter
-second a finger, and 0.6 s to react — lasts 4 to 7 minutes with the fifth and
-4 to 5 without.
-
-Hits per step, from the same run: 1.9 at the opening, 1.0 by Dinner. Nobody
-wrote those numbers anywhere. The opening dishes hold a chord, and a held chord
-is throttled so the ear's phantom onsets cannot cook it, so the bot strums it
-more than once; by the time every step is a change the number is what the rule
-says — one chord, one step.
-
----
+| Control | Action |
+| --- | --- |
+| Arrows / click | Choose options before play |
+| Enter / first chord | Open the kitchen |
+| **P** | Pause or resume; losing focus also pauses |
+| **H** / click a chalkboard | Reveal current fingerings in Memory |
+| **I** | Show input diagnostics |
 
 ## Development
 
-Everything but `src/game.js` and `src/scene.js` runs in Node with no browser,
-which is what makes the rest of this section possible.
+Requires Node.js. Clone the repository, then:
 
-- **The preview.** `node tools/serve.mjs`, then open
-  `http://localhost:8765/tools/anteprima.html`: the real engine, scene and
-  clock, with the automatic player and a realistic detector's flaws, and
-  levels cut to twenty-five seconds so the whole ladder goes by while you
-  watch. The same server takes the pictures in this README: `POST
-  /shot?name=…` with the canvas as a PNG writes `docs/<name>.png`, at a whole
-  number of screen pixels per game pixel and with nothing of the host around
-  it.
-- **The bench.** `node tools/run.mjs --input bot --profile real --seed 7
-  --seconds 600` plays a whole service headless and prints the report. Twenty
-  seeds run in a shell loop in a few seconds, and the balance tests measure
-  exactly what it prints, not a copy of their own.
-- **The art.** The sprite sheets in `assets/art/` were generated with a local
-  diffusion model and cut down to game pixels — a reduction to the cell size,
-  a quantise, a chroma key and a fixed box — by a pipeline of prompts, a
-  runner and a cut-out chain that is not in this repository. It is a
-  workshop: seventy megabytes of takes behind three hundred kilobytes of
-  sprites, and a clone should download the game. `assets/art/atlas.json` says
-  where every frame is, and the game draws its own pixels for any frame the
-  atlas does not have.
-- **Against a checkout.** Point the app at a directory of junctions or
-  symlinks, one per plugin, with `FEEDBACK_PLUGINS_DIR=/path/to/dev-plugins`,
-  and an edit is live on the next reload. The host reads `plugin.json` at
-  startup, so a change to the manifest needs a restart and a change to the
-  code does not. `node tools/install.mjs --dry` says where a desktop build
-  would take a copy instead.
-- **Version.** Bump `version` in `plugin.json`, `package.json` and
-  `src/game.js` together; the stylesheet is cache-busted with it.
-
----
-
-## Tests
-
-```bash
+```sh
 npm test
+node tools/serve.mjs
 ```
 
-The first test in `tests/engine.test.js` is the one that carries the weight: a
-clean cycle has to cook a step at every burner height the game claims to be
-playable at, and hammering has to cook nothing. An earlier version of the rule
-failed that quietly, from the second step of a recipe onward, and nothing said
-so. That is why the test exists.
+Open `http://localhost:8765/tools/anteprima.html` for the scene preview. For keyboard input in the host use `?fretfood_input=keys`; scripted runs use `?fretfood_input=scripted&profile=real&seed=7`.
 
-`tests/layout.test.js` is the other kind of test, and it exists for the other
-kind of defect: a number two pixels past the edge of its plate is still a
-number, and every other test in the folder passes while the screen is wrong.
-The scene is drawn onto a canvas that records instead of painting
-(`tests/paper.js`), the letters are glued back into strings, and the strings
-are held to three rules a player would state in the same words — nothing off
-the screen, nothing outside the box it belongs to, and no two things written on
-top of each other — on the widest service the game can produce, and while the
-cards are moving. No hook was added to the game to make this possible: `font.js`
-prints a glyph with the nine argument form of `drawImage` and every sprite uses
-the three argument form, so on the back buffer a nine argument call is a letter
-and nothing else is.
+Run a headless balance check:
 
----
+```sh
+node tools/run.mjs --input bot --profile real --seed 7 --seconds 600
+```
+
+For a development checkout, place a link to this repository under your host's `FEEDBACK_PLUGINS_DIR`. Code edits apply on reload; manifest changes require a restart. Keep the versions in `plugin.json`, `package.json` and `src/game.js` aligned.
+
+The repository ships final sprite sheets; raw generations and art tools stay out of Git. The release ZIP contains runtime files and the licence. Tests cover engine behaviour, input handling, learning measurements and UI layout; educational effectiveness still needs playtesting.
 
 ## Licence
 
-AGPL-3.0-or-later, the same as fee[dB]ack. See [LICENSE](LICENSE).
+[AGPL-3.0-or-later](LICENSE).
