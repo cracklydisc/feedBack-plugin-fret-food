@@ -15,10 +15,14 @@
  * which is the dithering a 16-bit console would have used.
  */
 
+// Order quality needs a larger silhouette than the tiny stove/status icons.
+export const ORDER_STAR = { size: 7, advance: 9 };
+
 export const P = {
   ink: '#0d0b0c',
-  plate: '#16121a',
-  plateHi: '#2a222c',
+  plate: '#24221c',
+  plateHi: '#373326',
+  teal: '#234c46',
   frame: '#6a4e3a',
   frameHi: '#a07a56',
   frameLo: '#3a2a20',
@@ -34,9 +38,9 @@ export const P = {
   greyLo: '#4c464a',
   greyHi: '#c6c0b8',
 
-  brick: '#9a5230',
-  brickHi: '#b86c3e',
-  brickLo: '#6e3618',
+  brick: '#764c38',
+  brickHi: '#94634a',
+  brickLo: '#533525',
   mortar: '#3e2618',
 
   wood: '#8c5628',

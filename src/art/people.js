@@ -252,6 +252,8 @@ const REGULARS = [
   { skin: 3, hair: 3, hairColor: 0, outfit: 'coat', color: 9, scarf: 13, body: 'normal', pose: 'rest' },
   { skin: 4, hair: 6, hairColor: 4, outfit: 'overalls', color: 10, shirt: 15, body: 'short', pose: 'talk' },
   { skin: 1, hair: 4, hairColor: 1, outfit: 'shirt', color: 11, facial: 'moustache', glasses: 'square', body: 'short', pose: 'chin' },
+  { skin: 3, hair: 12, hairColor: 0, outfit: 'jacket', color: 3, shirt: 7, body: 'normal', earrings: true, pose: 'chin' },
+  { skin: 1, hair: 0, hairColor: 4, hat: 'cap', hatColor: '#53613a', outfit: 'jacket', color: 10, shirt: 7, facial: 'moustache', body: 'wide', pose: 'rest' },
 ];
 
 /** Resolves a description into the colours the drawing uses. */
@@ -276,7 +278,7 @@ function resolve(d) {
   };
 }
 
-/** One of the twelve regulars. */
+/** One of the regulars; keep the fallback identities available without the atlas. */
 export function look(face) {
   const f = ((face % REGULARS.length) + REGULARS.length) % REGULARS.length;
   return resolve(REGULARS[f]);
@@ -690,49 +692,66 @@ function buildStanding(L, pose, mood, frame) {
 }
 
 /* ── the cooks ────────────────────────────────────────────────────────────
- * Two cooks at the pass behind the cards, seen from the chest up, each doing
- * one thing in two frames: the first chops, the second stirs. The board and
- * the bowl are part of the sprite, so the hands and the tools layer right. */
-const COOK_W = 48, COOK_H = 32;
+ * Draw at the actual 34×34 game resolution. Broad colour clusters survive
+ * small displays; heads stay identical across the two working poses. */
+const COOK_W = 34, COOK_H = 34;
 function buildCook(n, frame) {
-  const L = look(n === 0 ? 5 : 9);
-  L.color = P.white; L.lo = P.greyHi; L.hi = P.white; L.outfit = 'cook'; L.hat = 'toque';
   const { c, g } = canvas(COOK_W, COOK_H);
-  const cx = 24;
-  const foot = COOK_H;
-  const headY = TOQUE_UP;
-  const ny = headY + 11;
-  const B = BODIES.normal;
-  torso(g, cx, ny, B, foot - ny, P.white, P.greyHi, P.white);
-  // Double row of buttons, and the kerchief.
-  for (let j = 4; j < foot - ny - 1; j += 3) { rect(g, cx - 2, ny + j, 1, 1, P.ink); rect(g, cx + 2, ny + j, 1, 1, P.ink); }
-  rect(g, cx - 3, ny, 7, 2, n === 0 ? P.red : '#3c6cba'); rect(g, cx - 1, ny + 2, 3, 1, n === 0 ? P.redLo : '#2a4a8a');
-  const SL = [cx - B.sh + 1, ny + 3], SR = [cx + B.sh - 1, ny + 3];
-  if (n === 0) {
-    // Chopping: a board with a tomato and its slices, the knife up and down.
-    rect(g, cx - 14, foot - 4, 20, 3, P.ink); rect(g, cx - 13, foot - 3, 18, 1, P.woodHi); rect(g, cx - 13, foot - 2, 18, 1, P.wood);
-    rect(g, cx - 10, foot - 7, 4, 3, '#d83028'); rect(g, cx - 9, foot - 7, 2, 1, '#ff8a7a'); rect(g, cx - 9, foot - 8, 1, 1, '#3a9a3a');
-    rect(g, cx - 4, foot - 5, 2, 1, '#ff8a7a'); rect(g, cx - 1, foot - 5, 2, 1, '#d83028');
-    limb(g, [SL, [cx - B.sh - 3, ny + 9], [cx - 8, foot - 8]], [P.white]);
-    hand(g, cx - 8, foot - 8, L, true);
-    const ky = frame ? foot - 7 : foot - 13;
-    limb(g, [SR, [cx + B.sh + 3, ny + 8], [cx + 6, ky]], [P.white]);
-    // The knife: blade to the left of the hand, handle in it.
-    rect(g, cx - 3, ky - 1 + (frame ? 0 : 1), 9, 3, P.ink); rect(g, cx - 2, ky + (frame ? 0 : 1), 7, 1, P.steelHi);
-    rect(g, cx + 4, ky - 1, 5, 3, P.ink); rect(g, cx + 5, ky, 3, 1, P.woodLo);
-    hand(g, cx + 6, ky, L, true);
+  const r = (x, y, w, h, color) => rect(g, x, y, w, h, color);
+  const skin = n ? '#cf9463' : '#eab27c';
+  const skinLo = n ? '#a86742' : '#bf8050';
+  const hair = n ? '#30201b' : '#573322';
+  const scarf = n ? P.copper : P.amber;
+
+  // A continuous coat silhouette, with two broad shadow panels.
+  r(9, 22, 17, 12, P.ink); r(6, 24, 23, 10, P.ink);
+  r(9, 23, 17, 11, P.cream); r(7, 25, 21, 9, P.cream);
+  r(10, 23, 13, 11, P.white); r(24, 25, 3, 9, P.greyHi);
+  r(17, 25, 1, 9, P.cream);
+  for (const y of [27, 31]) { r(14, y, 1, 1, P.woodInk); r(20, y, 1, 1, P.woodInk); }
+  r(14, 20, 7, 4, P.ink); r(15, 20, 5, 3, skinLo);
+  r(12, 23, 5, 2, scarf); r(18, 23, 5, 2, scarf);
+  r(16, 24, 3, 3, scarf); r(17, 26, 2, 2, P.copperLo);
+
+  // Compact faces: paired eyes, a single nose shadow, deliberate hair masses.
+  if (n) { r(9, 12, 17, 12, P.ink); r(10, 12, 15, 11, hair); }
+  r(11, 10, 13, 10, P.ink); r(13, 19, 9, 3, P.ink);
+  r(10, 14, 2, 4, skinLo); r(24, 14, 2, 4, skinLo);
+  r(12, 11, 11, 8, skin); r(14, 18, 7, 3, skin);
+  r(22, 12, 1, 6, skinLo); r(20, 18, 2, 2, skinLo);
+  r(12, 11, n ? 4 : 2, 3, hair); r(22, 11, 1, 3, hair);
+  r(14, 14, 2, 1, hair); r(20, 14, 2, 1, hair);
+  r(15, 15, 1, 1, P.ink); r(20, 15, 1, 1, P.ink);
+  r(18, 16, 1, 2, skinLo);
+  if (n) { r(17, 19, 3, 1, P.woodInk); r(12, 18, 1, 1, P.gold); }
+  else { r(15, 18, 3, 1, hair); r(19, 18, 3, 1, hair); r(16, 19, 5, 1, hair); }
+
+  // Toque pleats use only two large warm-white areas, no mottled texture.
+  r(14, 4, 7, 1, P.ink); r(10, 5, 15, 5, P.ink);
+  r(9, 6, 17, 3, P.ink);
+  r(11, 9, 13, 3, P.ink);
+  r(14, 5, 7, 4, P.white); r(11, 6, 13, 3, P.white);
+  r(10, 7, 15, 2, P.white);
+  r(12, 9, 11, 2, P.cream); r(13, 9, 8, 1, P.white);
+  r(15, 6, 1, 2, P.cream); r(21, 5, 1, 3, P.cream);
+
+  // Sleeves connect visibly to hands; tools never cross the face.
+  r(5, 27, 5, 5, P.ink); r(6, 27, 4, 3, P.white);
+  r(25, 26, 5, 5, P.ink); r(25, 26, 4, 3, P.white);
+  if (!n) {
+    const py = 29 - frame;
+    r(8, py, 15, 4, P.ink); r(10, py + 1, 11, 2, P.copper);
+    r(10, py, 11, 1, P.steelHi); r(12, py + 1, 4, 1, P.copperHi);
+    r(23, py, 6, 2, P.woodInk); r(24, py, 4, 1, P.woodHi);
+    r(6, 29, 3, 2, skin); r(26, py - 1, 3, 2, skin);
   } else {
-    // Stirring a bowl: the far hand holds the rim, the near one turns the spoon.
-    rect(g, cx - 9, foot - 9, 20, 9, P.ink); rect(g, cx - 8, foot - 8, 18, 7, P.steelHi); rect(g, cx + 6, foot - 8, 3, 7, P.steel);
-    rect(g, cx - 7, foot - 7, 16, 2, '#f0e8c8'); rect(g, cx - 5, foot - 7, 4, 1, P.white);
-    limb(g, [SL, [cx - B.sh - 3, ny + 9], [cx - 9, foot - 9]], [P.white]);
-    hand(g, cx - 9, foot - 9, L, true);
-    const sx = frame ? cx + 7 : cx + 1;
-    limb(g, [SR, [cx + B.sh + 3, ny + 7], [sx + 3, foot - 13]], [P.white]);
-    rect(g, sx - 1, foot - 14, 3, 9, P.ink); rect(g, sx, foot - 13, 1, 7, P.woodHi);
-    hand(g, sx + 3, foot - 13, L, true);
+    r(10, 29, 15, 5, P.ink); r(11, 30, 13, 3, P.copper);
+    r(11, 29, 13, 1, P.steelHi); r(12, 30, 3, 2, P.copperHi);
+    r(22, 30, 2, 3, P.copperLo);
+    const sx = frame ? 20 : 22;
+    r(sx, 25, 2, 6, P.woodInk); r(sx, 25, 1, 5, P.woodHi);
+    r(sx + 1, 26, 4, 2, skin); r(8, 29, 3, 2, skin);
   }
-  drawHead(g, cx - 6, headY, L, n === 1 ? 'happy' : 'neutral');
   return c;
 }
 

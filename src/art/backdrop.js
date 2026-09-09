@@ -213,15 +213,22 @@ function kitchen(g) {
   hangingPan(g, 22, ry + 1);
   ladle(g, 42, ry + 1);
   whisk(g, 56, ry + 1);
-  hangingPan(g, 156, ry + 1);
+  hangingPan(g, 156, ry + 1, 'iron');
   garlic(g, 176, ry);
   spatula(g, 212, ry + 1);
   hangingPan(g, 226, ry + 1);
   chillies(g, 248, ry + 1);
   towel(g, 330, ry - 1, P.white);
-  hangingPan(g, 344, ry + 1);
+  hangingPan(g, 344, ry + 1, 'steel');
   ladle(g, 366, ry + 1);
-  towel(g, 402, ry - 1, '#3c6cba');
+  towel(g, 402, ry - 1, P.cream);
+
+  // Warm pools of work light under the two staff stations. Hard pixel steps
+  // preserve the tiled wall; no soft glow competing with the chord names.
+  for (const cx of GEO.COOK_CX) {
+    rect(g, cx - 19, HOOD_Y + HOOD_H + 1, 38, 1, P.cream);
+    rect(g, cx - 18, HOOD_Y + HOOD_H + 2, 36, 1, P.steelHi);
+  }
 
   // The pass: a steel worktop edge the cards hang from, and what sits on it.
   sack(g, 4, PASS_Y - 14);

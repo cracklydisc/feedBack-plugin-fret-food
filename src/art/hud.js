@@ -22,7 +22,7 @@
  */
 
 import { measure, money, clock as fmtClock, wrapPx } from './font.js';
-import { P } from './pix.js';
+import { P, ORDER_STAR } from './pix.js';
 import { label } from '../menu.js';
 
 const PAD = 5;            // from the edge of the plate to the first thing on it
@@ -290,32 +290,13 @@ export function coachText(snap, o) {
  * the card; the left-hand column keeps the chord name, the seconds and the
  * heat bar, which are pixels and are fine as pixels.
  */
-export function chordBoxes(snap, geo, opts) {
-  /* COMPACT, for a window too small to read a fingering in: the recipe chips
-   * are given up and the board takes their rows, forty-five tall from three
-   * under the card's edge. The instruction outranks the progress. */
-  const compact = !!(opts && opts.compact);
+export function chordBoxes(snap, geo) {
+  // The top row previews NEXT in every window; the recipe has its own rail.
   const out = [];
   for (let i = 0; i < geo.SLOTS; i++) {
     const st = (snap.stations || [])[i];
     if (!st || !st.dish || !st.wants) { out.push(null); continue; }
     const x = i * geo.SLOT_W + 2;
-    if (compact) { out.push({ i, chord: st.wants, x: x + 40, y: geo.CARD_Y + 3, w: 38, h: 45 }); continue; }
-    /* Below the recipe chips and above the heat bar, and BOTH edges were
-     * found the same way: by covering something.
-     *
-     * It started at `CARD_Y + 9`, which is two pixels INTO the chip row: the
-     * board is opaque, so it cut the bottom off the chord names of the recipe
-     * and covered the second and third chips outright. The chips end at
-     * `CARD_Y + 11`, so the board starts at 12.
-     *
-     * Then it was forty tall, and forty from twelve is row 51 — four rows into
-     * the heat bar, which starts at `CARD_Y + 49` and carries the white tick
-     * of the line the pot has to clear from row 48. A board on the vector
-     * layer is over the canvas and wins, so the one gauge the player watches
-     * while the pan comes up to temperature was being hidden by the diagram
-     * of the chord that heats it. The board gets rows 12 to 47 and the bar
-     * keeps 48 to 54: thirty-six, and the diagram scales to what it is given. */
     out.push({ i, chord: st.wants, x: x + 40, y: geo.CARD_Y + 12, w: 38, h: 36 });
   }
   return out;
@@ -336,60 +317,31 @@ const BUBBLE_AIR = 3;
  * The dish's name cut into the lines a bubble can hold, and the font to print
  * them in.
  *
- * Two lines of the M font is the shape every hand-written name fits. The
- * invented ones are three words and a suffix — "Shadow Sorbetto in Minor" —
- * and cut by characters they came out as `SHADOW` over `SORBETTO IN MINOR`,
- * which walked out of the bubble and across the next customer. Now the cut is
- * measured in pixels, and a name that still will not go in two lines of M is
- * printed in two lines of S, which is a third narrower and still legible at
- * the size the room is drawn at. A third line was the other way out and it is
- * the wrong one: the bubble would reach the customer's face.
+ * Use the same small hand for every order. Wrapping is measured in pixels,
+ * with at most two lines so long invented names cannot cover a guest's face.
  */
-/**
- * What a chip can say about a chord, in the width it has.
- *
- * A chip is eight pixels wide on an eight-step recipe and the S font is four
- * to a glyph, so `Cadd9` does not go in one and never will. What it must not
- * do is print `C`: a session with a guitar said it in one line — the preview
- * shows the same letter for two different chords, and the hand goes to the
- * wrong shape before the card is even in front of you.
- *
- * So a name that does not fit is CUT TO ITS ROOT AND MARKED, and the mark is
- * the point: it says "there is more to this one than the letter", and the
- * card under it says exactly what. `cut` is what the scene paints the mark
- * from; `full` is the name when the whole of it fits and there is nothing to
- * warn about.
- */
-export function chipText(name, width) {
-  const s = String(name === undefined || name === null ? '' : name);
-  if (!s) return { s: '', cut: false };
-  if (measure(s, 'S') <= width) return { s, cut: false };
-  const root = (/^[A-G][#b]?/.exec(s) || [s])[0];
-  return { s: root, cut: true };
-}
-
 export function bubbleLines(dish, geo) {
   const maxW = geo.SLOT_W - 4 - 2 * BUBBLE_AIR;
   const s = String(dish || '').toUpperCase();
-  const m = wrapPx(s, maxW, 'M', 2);
-  if (m.fits) return { lines: m.lines, font: 'M' };
+  // Orders are supporting information; keep a consistent, compact hand.
   return { lines: wrapPx(s, maxW, 'S', 2).lines, font: 'S' };
 }
 
 export function bubbleLayout(st, slot, geo, lines, font) {
   const NAME_H = 5;
+  const HEADER_H = ORDER_STAR.size;
   const f = font || 'M';
   const LINE_H = f === 'S' ? 7 : 8;
   const TEXT_H = f === 'S' ? 5 : 7;
   const AIR = BUBBLE_AIR;
   const cx = slot * geo.SLOT_W + geo.SLOT_W / 2;
-  const starsW = itemWidth({ stars: 5 });
+  const starsW = 4 * ORDER_STAR.advance + ORDER_STAR.size;
   const tw = Math.max(
     measure(String(st.name || '').toUpperCase(), 'S') + starsW + GAP,
     ...lines.map((l) => measure(l, f)),
   );
   const w = Math.min(geo.SLOT_W - 4, tw + AIR * 2);
-  const h = AIR + NAME_H + 2 + lines.length * LINE_H + AIR - 2;
+  const h = AIR + HEADER_H + 2 + lines.length * LINE_H + AIR - 2;
   let x = Math.round(cx - w / 2);
   x = Math.max(slot * geo.SLOT_W + 2, Math.min(slot * geo.SLOT_W + geo.SLOT_W - 2 - w, x));
   const y = geo.BUBBLE_Y;
@@ -397,10 +349,10 @@ export function bubbleLayout(st, slot, geo, lines, font) {
     x, y, w, h, cx, font: f,
     // Uppercased here and not left to the font: the small font has lowercase
     // letters now, for chord names, and `Maria` is not `MaRIa`.
-    name: { s: String(st.name || '').toUpperCase(), x: x + AIR, y: y + AIR, w: measure(String(st.name || '').toUpperCase(), 'S'), h: NAME_H },
-    stars: { n: st.stars, x: x + w - AIR - starsW, y: y + AIR, w: starsW, h: NAME_H },
+    name: { s: String(st.name || '').toUpperCase(), x: x + AIR, y: y + AIR + 1, w: measure(String(st.name || '').toUpperCase(), 'S'), h: NAME_H },
+    stars: { n: st.stars, x: x + w - AIR - starsW, y: y + AIR, w: starsW, h: HEADER_H },
     lines: lines.map((l, k) => ({
-      s: l, x: x + AIR, y: y + AIR + NAME_H + 2 + k * LINE_H, w: measure(l, f), h: TEXT_H,
+      s: l, x: x + AIR, y: y + AIR + HEADER_H + 2 + k * LINE_H, w: measure(l, f), h: TEXT_H,
     })),
   };
 }

@@ -54,18 +54,21 @@
  */
 
 import { P, canvas, rect, plate, rrect, dither, blit, hash } from './art/pix.js';
-import { text, measure, money } from './art/font.js';
+import { text, measure, money, wrapPx } from './art/font.js';
 import { seated, standing, crowd, cook, player, guitarGlow, PLAYER_STRINGS, PLAYER_GUITAR, FIGURE } from './art/people.js';
 import {
   pan, panSurface, bitPos, steam, stars, ticket, clockIcon, plateIcon, dinnerPlate, sidePlate,
-  drawIngredient, plated, note, COLD, ING,
+  drawIngredient, plated, note, guestSetting, COLD, ING,
 } from './art/props.js';
 import { buildBackdrop } from './art/backdrop.js';
 import { GEO, slotX, slotCX } from './art/geo.js';
-import { loadAtlas } from './art/atlas.js';
-import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText, chipText } from './art/hud.js';
+import { loadAtlas, CROWD_COUNT } from './art/atlas.js';
+import { CHEF_TOSS, chefTossFrame, HYBRID_CHEFS, hybridChefFrame } from './art/chef.js';
+import { PLAYER_ART, playerFrame } from './art/player.js';
+import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText } from './art/hud.js';
+import { recipeLayout, previewName } from './art/recipe.js';
 import { chordSvg } from './art/chordsvg.js';
-import { diagram, LEVELS, label } from './menu.js';
+import { diagram, LEVELS, label, FACES } from './menu.js';
 import { keyFor } from './input/keys.js';
 
 /*
@@ -120,7 +123,7 @@ const GHOST_MS = 2200;
  * cook has been 39x73, then 59x115, then 61x120, and is now a hand-drawn
  * 60x104 with the instrument in a different place every time — a number
  * carried over from the old one has the notes leaving from his elbow. */
-const DRAWN_GUITAR = { x: 12, y: 67 };
+const DRAWN_GUITAR = PLAYER_ART.guitar;
 
 /* Where the queue stands in the doorway: the front row first, so that
  * `queue[0]`, the next to be seated, is nearest the counter. Feet positions. */
@@ -129,18 +132,17 @@ const QUEUE_SPOTS = [
   [440, 100], [456, 100], [472, 100],
 ];
 
-/* Where the crowd stands: two in front at every place, either side of the
- * stool, and three a step back, between. `depth` 1 is the back row. The order
+/* Small groups flank the stools, leaving headroom behind seated guests.
+ * `depth` 1 is the back row. The order
  * they appear in as the room fills is decided once, from a hash, so the room
  * fills evenly instead of left to right. */
 const CROWD_SPOTS = (() => {
   const out = [];
   for (let i = 0; i < GEO.SLOTS; i++) {
     const cx = slotCX(i);
-    out.push({ x: cx - 30, foot: GEO.CROWD_FOOT, depth: 0 });
-    out.push({ x: cx + 30, foot: GEO.CROWD_FOOT, depth: 0 });
-    out.push({ x: cx - 15, foot: GEO.CROWD_BACK_FOOT, depth: 1 });
-    out.push({ x: cx + 15, foot: GEO.CROWD_BACK_FOOT, depth: 1 });
+    // Groups flank the seated guest; keep the space behind their head open.
+    out.push({ x: cx - 29, foot: GEO.CROWD_FOOT, depth: i % 2 });
+    out.push({ x: cx + 29, foot: GEO.CROWD_FOOT - 3, depth: (i + 1) % 2 });
     if (i > 0) out.push({ x: cx - 42, foot: GEO.CROWD_BACK_FOOT + 2, depth: 1 });
   }
   out.forEach((s, k) => { s.seed = 1000 + k * 7; s.order = hash(k, 3, 55); });
@@ -148,7 +150,9 @@ const CROWD_SPOTS = (() => {
   return out;
 })();
 /* How many of them are in the room at each level; past the table, all. */
-const CROWD_BY_LEVEL = [0, 4, 7, 10, 14, 18, 22];
+const CROWD_BY_LEVEL = [0, 3, 5, 7, 10, 12, 14];
+// Standing counterparts for the seated cast, in customer-sheet order.
+const QUEUE_CAST = [3, 4, 5, 6, 9, 8, 7, 2, 13, 10, 11, 12, 14, 15, 0, 1, 16];
 
 export function createScene(container) {
   const { W, H } = GEO;
@@ -208,21 +212,10 @@ export function createScene(container) {
    * because the game cannot make the window bigger and should not pretend. */
   let narrow = false;
   /**
-   * How the 480 by 270 picture is put on the screen, and why it is not simply
-   * stretched to the box.
-   *
-   * A pixel font only reads when every pixel is the same size. A canvas sized
-   * to exactly fill its box usually is not: at 1.81 times, a stem is one device
-   * pixel here and two there, and a letter three pixels wide loses a third of
-   * its weight depending on where it happens to fall. Worse below 1, where
-   * nearest-neighbour deletes whole rows and takes the crossbar off an A.
-   *
-   * So the buffer is blown up by a WHOLE number, which is even by
-   * construction, and the browser is left to fit that image into the box. When
-   * the whole number is the exact fit there is nothing left to fit and the
-   * pixels stay hard; when it is not, the picture is scaled by a fraction with
-   * filtering on, which costs a little softness and keeps every letter the same
-   * weight. That is the trade a player can actually read.
+   * Upscale the native buffer by a whole number, then fit its CSS box.
+   * Keep nearest-neighbour presentation even at fractional window sizes:
+   * interpolation blends the one-pixel eyes and outlines of small sprites.
+   * Fractional fits can still give uneven pixel widths; integer fits are best.
    */
   function layout() {
     const bw = container.clientWidth || root.clientWidth || W;
@@ -240,8 +233,7 @@ export function createScene(container) {
      * exact ones the moment the ceiling of four stopped being reachable.
      *
      * Otherwise round up, so the buffer is never smaller than what is shown:
-     * a browser downscaling our picture costs a little softness, and a browser
-     * upscaling it costs a lot. */
+     * the nearest-neighbour source always has enough pixels for the display. */
     const whole = Math.abs(fit - Math.round(fit)) < 0.02 ? Math.round(fit) : Math.ceil(fit - 0.01);
     const k = Math.max(1, Math.min(MAX_ZOOM, whole));
     outW = W * k;
@@ -257,7 +249,7 @@ export function createScene(container) {
     stack.style.width = cssW + 'px';
     stack.style.height = cssH + 'px';
     narrow = cssW < 720;
-    screen.style.imageRendering = Math.abs(cssW * dpr - outW) < 0.5 ? 'pixelated' : 'auto';
+    screen.style.imageRendering = 'pixelated';
     sg.imageSmoothingEnabled = false;
   }
   layout();
@@ -292,6 +284,7 @@ export function createScene(container) {
   const arrive = {};        // slot -> when the customer sat down
   const ghosts = {};        // slot -> the customer who just left, still drawn
   const flash = {};         // slot -> { kind, t0 }
+  const stoveNotices = {};  // stationary feedback, separate from short hit flashes
   const cooked = {};        // slot -> when a step last cooked there
   const plates = {};        // slot -> { pan, ingredients, until } a dish on the counter
   const smoke = {};         // slot -> until: a ruined pan smokes
@@ -304,6 +297,9 @@ export function createScene(container) {
   let banner = null;
   let over = null;
   let strumAt = -1e9;
+  let pickAt = -1e9;         // hand movement also answers a missed/rough chord
+  let chefStudy = true;
+  let customerPose = null; // Development preview only; null follows gameplay.
   let comboAt = -1e9;
   let cookAt = -1e9;
   let chainLostAt = -1e9;
@@ -337,7 +333,10 @@ export function createScene(container) {
    * one line about the hand. */
   let closing = { seed: null, note: null };
 
-  const now = () => performance.now();
+  let pausedAt = null;
+  let pausedMs = 0;
+  const sceneTime = (t) => (pausedAt === null ? t : pausedAt) - pausedMs;
+  const now = () => sceneTime(performance.now());
 
   /* ── the loop ──────────────────────────────────────────────────────────── */
   let raf = 0;
@@ -360,7 +359,7 @@ export function createScene(container) {
     if (seen++ % stats.every) return;
 
     const t0 = performance.now();
-    render(t);
+    render(sceneTime(t));
     sg.drawImage(back.c, 0, 0, W, H, 0, 0, outW, outH);
     const ms = performance.now() - t0;
     stats.frames++;
@@ -384,8 +383,8 @@ export function createScene(container) {
   /**
    * A drawn sprite where there is one, and the coded sprite where there is not.
    *
-   * Every person in this scene is now a generated sprite: the customers, the
-   * crowd behind them and the two cooks at the pass. What the atlas gives back
+   * Customers and crowd use imported sprites; the small line cooks use native
+   * pixel drawings. What the atlas gives back
    * is a rectangle inside a sheet, so the one thing this has to get right is
    * WHERE it lands — feet on a line, centred on a column — because a drawn
    * customer and a coded one are not the same height and never will be. Nothing
@@ -419,6 +418,7 @@ export function createScene(container) {
 
   /** The same, for a frame whose sheet the drawing does not care about: it is
    *  looked up by name across all of them. */
+  const crowdShade = new Map();
   function drawnAny(frame, cx, foot, o) {
     const f = art.find(frame);
     if (!f) return null;
@@ -428,12 +428,26 @@ export function createScene(container) {
     if (opt.alpha !== undefined) g.globalAlpha = opt.alpha;
     g.drawImage(f.img, f.sx, f.sy, f.w, f.h, x, y, f.w, f.h);
     if (opt.alpha !== undefined) g.globalAlpha = 1;
+    if (opt.shade) {
+      const key = frame + '|' + opt.shade;
+      let shaded = crowdShade.get(key);
+      if (!shaded) {
+        const c = canvas(f.w, f.h);
+        c.g.drawImage(f.img, f.sx, f.sy, f.w, f.h, 0, 0, f.w, f.h);
+        c.g.globalCompositeOperation = 'source-atop';
+        c.g.globalAlpha = opt.shade;
+        rect(c.g, 0, 0, f.w, f.h, P.night);
+        shaded = c.c;
+        crowdShade.set(key, shaded);
+      }
+      g.drawImage(shaded, x, y);
+    }
     return { x, y, w: f.w, h: f.h };
   }
 
   /** Which sheet a customer's face index comes from. `face` is the engine's own
    *  number and the sheets are named for it, so nothing has to be looked up. */
-  const custSheet = (face) => 'cust-' + String((face % 12) + 1).padStart(2, '0');
+  const custSheet = (face) => 'cust-' + String((face % FACES) + 1).padStart(2, '0');
 
   /* What the vector layer is currently showing, so it is rebuilt when the
    * chords change and not sixty times a second: five diagrams a frame would be
@@ -441,7 +455,7 @@ export function createScene(container) {
   let shownKey = '';
   function refreshChords(t) {
     if (!layer) return;
-    const boxes = chordBoxes(snap, GEO, { compact: narrow });
+    const boxes = chordBoxes(snap, GEO);
     /* A card sliding out of the rail is clipped by the pixel layer and the
      * vector one is not, so the diagram waits for its card to land instead of
      * hanging in the air above it. */
@@ -449,7 +463,7 @@ export function createScene(container) {
       const born = arrive[i];
       return !still && born !== undefined && t - born < 340;
     };
-    const key = (narrow ? 'c|' : '') + boxes.map((b, i) => (b && !landing(i) ? b.chord : '-')).join('|');
+    const key = boxes.map((b, i) => b && !landing(i) ? b.chord : '-').join('|');
     if (key === shownKey) return;
     shownKey = key;
     let markup = '';
@@ -612,24 +626,12 @@ export function createScene(container) {
         const ph = hash(sp.seed, 1, 5);
         const frame = still ? 0 : Math.floor(t / (1300 + ph * 900) + ph * 9) % 2;
         const bob = still ? 0 : Math.floor(t / (800 + ph * 500) + ph * 3) % 2;
-        /* Drawn scenery when there is any, and the coded crowd when there is
-         * not.
-         *
-         * The back row used to be drawn at 0.55 and the FRONT row at 0.85, on
-         * the idea that one sheet could stand for two distances. It cannot:
-         * the wall behind them is brick, so at 0.55 the mortar lines run
-         * straight through people's faces and at 0.85 they run faintly
-         * through everybody. What that reads as is not depth, it is people
-         * made of glass. Depth is already in the picture — the back row's feet
-         * are eight rows higher and the front row is drawn over them — so the
-         * dimming is gone and the only thing left of it is a touch off the
-         * back row, small enough to sit under the brick instead of behind it. */
-        /* By FRAME NAME across every sheet, because the twelve of them live on
-         * two sheets now: six to a sheet is what makes a standing patron
-         * sixty pixels tall instead of thirty-three, and which sheet a given
-         * patron ended up on is a fact about a generation run. */
-        const who = 'crowd-' + String(Math.floor(hash(sp.seed, 5, 31) * 12)).padStart(2, '0');
-        if (!drawnAny(who, sp.x, sp.foot + bob, { alpha: sp.depth ? 0.92 : 1 })) {
+        // Shade the opaque sprite, so the crowd recedes without brickwork
+        // showing through faces. Tinted frames are cached in drawnAny().
+        // Eighteen standing identities, shared by the crowd and doorway queue.
+        // Walk all eighteen identities before repeating one in a packed room.
+        const who = 'crowd-' + String((k * 7 + 5) % CROWD_COUNT).padStart(2, '0');
+        if (!drawnAny(who, sp.x, sp.foot + bob, { shade: sp.depth ? 0.46 : 0.32 })) {
           const spr = crowd(sp.seed, frame, sp.depth);
           blit(g, spr, sp.x - FIGURE.CX, sp.foot - spr.height + bob);
         }
@@ -656,8 +658,11 @@ export function createScene(container) {
       const bob = still ? 0 : Math.floor(t / 700 + k) % 2;
       const pose = k === 0 ? 'stand' : ['stand', 'pocket', 'crossed', 'phone', 'talk', 'hips'][Math.floor(ph * 6)];
       const frame = still ? 0 : Math.floor(t / 1500 + k * 2) % 2;
-      const spr = standing(q[k].face, { pose, frame, mood: k === 0 ? 'happy' : undefined });
-      blit(g, spr, sx - FIGURE.CX, feet - spr.height + bob);
+      const who = 'crowd-' + String(QUEUE_CAST[q[k].face % QUEUE_CAST.length]).padStart(2, '0');
+      if (!drawnAny(who, sx, feet + bob, { shade: k ? .18 : 0 })) {
+        const spr = standing(q[k].face, { pose, frame, mood: k === 0 ? 'happy' : undefined });
+        blit(g, spr, sx - FIGURE.CX, feet - spr.height + bob);
+      }
     }
     g.restore();
 
@@ -674,14 +679,14 @@ export function createScene(container) {
       if (st && st.name) {
         const since = arrive[i] === undefined ? 1e9 : t - arrive[i];
         const p = Math.min(1, since / 420);
-        const dy = Math.round((1 - ease(p)) * 44);
+        const dy = still ? 0 : Math.round((1 - ease(p)) * 44);
         const po = posture(i, st, t);
-        /* The drawn customer is one pose, so the STATES are made here: a lean
-         * over the counter when the pot is dying, and a faster bob. The art
-         * gives a body and the code gives the performance, which is the same
-         * split the cook is drawn under. */
-        const lean = po.lean ? (Math.floor(t / 130) % 2 ? 1 : 0) : 0;
-        let box = drawn(custSheet(st.face), 'wait', cx, SEAT_FOOT + dy, { dy: -lean, dx: lean });
+        // Use the existing expression frames, with a small lean for urgency.
+        const lean = po.lean && !still ? (Math.floor(t / 130) % 2 ? 1 : 0) : 0;
+        const emotion = customerPose || (po.mood === 'angry' ? 'angry' : po.mood === 'impatient' || po.mood === 'worried' ? 'impatient' : po.mood === 'thrilled' || po.mood === 'happy' ? 'happy' : 'wait');
+        // Slow, offset breaths while waiting; a forward lean as patience runs out.
+        const breath = !still && !po.lean && Math.floor((t + st.face * 317) / 1300) % 4 === 0 ? 1 : 0;
+        let box = drawn(custSheet(st.face), emotion, cx, SEAT_FOOT + dy, { dy: -lean - breath, dx: lean });
         if (!box) {
           const spr = seated(st.face, po);
           blit(g, spr, cx - FIGURE.CX, SEAT_FOOT - spr.height + dy);
@@ -697,7 +702,7 @@ export function createScene(container) {
           const b = box.body;
           const tx = b ? box.x + Math.round(b.cx + b.w * 0.28) : box.x + box.w - 4;
           const ty = b ? box.y + b.top + 5 : box.y + 14;
-          rect(g, tx, ty + Math.round(ph * 5), 1, 2, P.cyanHi);
+          rect(g, tx, ty + Math.round(ph * 5), 1, 2, P.greyHi);
         }
       } else if (ghost && t < ghost.until) {
         const p = (t - ghost.t0) / (ghost.until - ghost.t0);
@@ -737,6 +742,7 @@ export function createScene(container) {
        * dish has actually arrived on it: the food is in the air between the
        * pan and here, and putting it on the plate as well would be two of it. */
       if (st) {
+        if (st.name) guestSetting(g, cx, COUNTER_Y + 2, st.face, t, still);
         const pl = plates[i];
         const landed = pl && t < pl.until && t - pl.t0 >= FLIGHT_MS;
         dinnerPlate(g, cx, COUNTER_Y + 2, landed ? eaten(pl, t) : null);
@@ -775,27 +781,27 @@ export function createScene(container) {
    * used to print its second line on the bubble's own last row, so every
    * descender on the menu sat on the outline. */
   function bubble(i, st) {
-    // Cut by measured width, in a smaller font when the name will not go in
-    // two lines of the bigger one: see `bubbleLines`.
+    // Compact, measured lines preserve the full order name.
     const { lines, font } = bubbleLines(st.dish, GEO);
     const b = bubbleLayout(st, i, GEO, lines, font);
     // The critic's bubble is edged in gold: the one customer worth recognising
     // from across the room, before reading a word.
     rrect(g, b.x - 1, b.y - 1, b.w + 2, b.h + 2, st.critic ? P.gold : P.ink, 2);
-    rrect(g, b.x, b.y, b.w, b.h, P.paper, 1);
+    const paper = '#d4c5a6';
+    rrect(g, b.x, b.y, b.w, b.h, paper, 1);
     // The tail, pointing at the head.
     const foot = b.y + b.h;
     const cx = b.cx;
     rect(g, cx - 3, foot, 7, 1, P.ink);
-    rect(g, cx - 2, foot, 5, 1, P.paper);
+    rect(g, cx - 2, foot, 5, 1, paper);
     rect(g, cx - 2, foot + 1, 5, 1, P.ink);
-    rect(g, cx - 1, foot + 1, 3, 1, P.paper);
+    rect(g, cx - 1, foot + 1, 3, 1, paper);
     rect(g, cx - 1, foot + 2, 3, 1, P.ink);
-    rect(g, cx, foot + 2, 1, 1, P.paper);
+    rect(g, cx, foot + 2, 1, 1, paper);
     rect(g, cx, foot + 3, 1, 1, P.ink);
     text(g, b.name.s, b.name.x, b.name.y, { font: 'S', color: st.critic ? P.amberLo : P.greyLo });
     // The stars on the right of the name: the soot, and nothing else.
-    stars(g, b.stars.x, b.stars.y, b.stars.n, 5);
+    stars(g, b.stars.x, b.stars.y, b.stars.n, 5, true);
     for (const l of b.lines) text(g, l.s, l.x, l.y, { font: b.font, color: P.ink });
   }
 
@@ -816,11 +822,11 @@ export function createScene(container) {
       if (it.role === 'pips') {
         for (let k = 0; k < it.pips; k++) {
           rect(g, it.x + k * 7, it.y, 5, 6, P.ink);
-          rect(g, it.x + 1 + k * 7, it.y + 1, 3, 4, lost ? P.red : k < it.lit ? P.amber : P.greyLo);
+          rect(g, it.x + 1 + k * 7, it.y + 1, 3, 4, lost ? P.red : k < it.lit ? '#bca16b' : P.greyLo);
         }
         continue;
       }
-      if (it.role === 'chain') { text(g, it.s, it.x, it.y, { font: 'M', color: lost ? P.red : P.amber }); continue; }
+      if (it.role === 'chain') { text(g, it.s, it.x, it.y, { font: 'M', color: lost ? P.red : P.cream }); continue; }
       if (it.role === 'coach') {
         // Urgent things are said in amber; the rule and the legend in grey.
         const urgent = snap.started === false || snap.silent;
@@ -857,64 +863,39 @@ export function createScene(container) {
   function drawKitchen(t) {
     const { PASS_Y, PAN_BASE_Y, STOVE_FRONT_Y, PLAYER_X, PLAYER_Y } = GEO;
 
-    /*
-     * TWO COOKS AT THE PASS, and the only figures on the screen that are hung
-     * from the top of their band instead of stood on a line.
-     *
-     * The band is what makes them the exception. The kitchen starts at 134,
-     * under the chain and combo strip, and the pass is at 162 with the chord
-     * cards from 164: a cook standing behind that worktop has THIRTY ROWS to
-     * be seen in. The coded cooks were thirty-two tall and fitted. The drawn
-     * ones are fifty-six and forty-four, and stood on the pass the taller one
-     * reached row 108 — straight through the strip and up into the dining
-     * room, his hat over the combo counter. That is what "the cooks are on top
-     * of the interface" was, and no amount of care in the sprite could have
-     * fixed it, because the sprite was a whole standing cook and the room only
-     * has room for a head.
-     *
-     * So they hang from the top of the kitchen and everything below the rail
-     * is behind the cards, which are drawn next and are opaque. Both stand
-     * inside a card's width on purpose — the backdrop already leaves the rail
-     * bare between 100 and 152 and between 274 and 326 for them — so what is
-     * cut off is cut off by a panel and not by an edge. Which is what a cook
-     * behind a counter looks like.
-     */
+    // Cooks stand behind the worktop, between the hood and the hanging boards.
     const f0 = still ? 0 : Math.floor(t / 420) % 2;
     const f1 = still ? 0 : Math.floor(t / 560 + 1) % 2;
-    // A bob rather than a chop: the drawn cooks are one pose each, so what
-    // moves is the whole body, out of step with each other.
-    /*
-     * And the band is a CLIP, not a promise. It holds the cooks and the cards
-     * both, because the cards need it too: one that has just opened slides
-     * down into the rail from a card's height above it, and a card's height
-     * above the rail is the chain and combo strip, so for the third of a
-     * second a place opened an opaque panel crossed the interface. Clipped,
-     * the same animation is a ticket dropping in from behind the hood — and
-     * anything either of them grows by later is cut here instead of appearing
-     * on top of the score.
-     */
+    // Two tool poses per chef: hands work while heads and aprons stay grounded.
+    // Keep staff and arriving tickets below the HUD.
     g.save();
     g.beginPath();
     g.rect(0, GEO.KITCHEN_Y, GEO.W, GEO.KITCHEN_H);
     g.clip();
 
-    /* Four rows above the band, and the clip takes them back. The sprites are
-     * four rows taller than the band for exactly this: what those four rows
-     * hold is the top of a hat, the strip is drawn before the cooks and cuts
-     * it, and the thirty rows that remain hold a face and a chest instead of
-     * a hat and an eyebrow. */
+    // Hats sit behind the hood; the worktop occludes the bottom of each sprite.
     const COOK_TOP = GEO.KITCHEN_Y - GEO.COOK_LIFT;
     const [cookA, cookB] = GEO.COOK_CX;
-    /* Two of the twenty on the sheet, picked for what they are holding: the
-     * pass reads as a working kitchen when one of them has a pan and the other
-     * a spoon, and as a queue when they are both empty-handed. */
-    if (!drawn('cooks', 'cook-10', cookA, 0, { top: COOK_TOP, dy: still ? 0 : -f0 })) {
-      blit(g, cook(0, f0), cookA - FIGURE.COOK_W / 2, PASS_Y + 2 - FIGURE.COOK_H);
+    // A purpose-drawn bust preserves the study's face at native resolution.
+    // Anchor the body, not the wide cell containing the airborne vegetables.
+    const drawHybrid = (index, cx) => {
+      if (!chefStudy) return false;
+      const chef = HYBRID_CHEFS[index];
+      return drawn(chef.sheet, hybridChefFrame(chef, still ? 0 : t + index * 470),
+        cx + 24 - chef.bodyX, 0, { top: GEO.KITCHEN_Y });
+    };
+    if (!drawHybrid(0, cookA) && !drawn(CHEF_TOSS.sheet, chefTossFrame(still ? 0 : t),
+      cookA + CHEF_TOSS.w / 2 - CHEF_TOSS.bodyX, 0, { top: GEO.KITCHEN_Y })) {
+      blit(g, cook(0, f0), cookA - FIGURE.COOK_W / 2, COOK_TOP);
     }
-    if (!drawn('cooks', 'cook-17', cookB, 0, { top: COOK_TOP, dy: still ? 0 : -f1 })) {
-      blit(g, cook(1, f1), cookB - FIGURE.COOK_W / 2, PASS_Y + 2 - FIGURE.COOK_H);
+    if (!drawHybrid(1, cookB)) blit(g, cook(1, f1), cookB - FIGURE.COOK_W / 2, COOK_TOP);
+    // The front lip passes OVER their aprons, grounding both cooks on the pass.
+    rect(g, 0, PASS_Y, GEO.RIGHT_X, 1, P.steelHi);
+    rect(g, 0, PASS_Y + 1, GEO.RIGHT_X, 1, P.steelInk);
+    for (const cx of GEO.COOK_CX) {
+      rect(g, cx - 17, PASS_Y - 1, 34, 1, P.woodHi);
+      rect(g, cx - 16, PASS_Y, 32, 1, P.woodLo);
     }
-
     for (let i = 0; i < GEO.SLOTS; i++) card(i, snap.stations[i], t);
     g.restore();
 
@@ -949,17 +930,25 @@ export function createScene(container) {
       if (st.ready) steam(g, cx, s.y - 1, t, COLD.has(st.pan), still);
       const fl = flash[i];
       if (fl && fl.kind === 'dirty' && t - fl.t0 < 500) smokePuffs(cx, s.y - 2, t, fl.t0 + 500, P.smoke);
-      /* Stars and what the dish PAYS NOW on the stove front, under the pan.
+      /* What the dish PAYS NOW on the stove front, under the pan.
        * The tag printed the list price, a number the till never paid: the
        * dish goes out at the price times the multiplier, plus the tip while
        * the pot is clean. `worth` is that sum, so the tag falls with a lost
        * star and climbs with the chain, and the number the player reads when
-       * choosing which pot to save is the number that arrives. Gold, like
-       * every sum of money on the screen. */
-      plate(g, cx - 26, STOVE_FRONT_Y + 2, 52, 12, { hi: false });
-      stars(g, cx - 22, STOVE_FRONT_Y + 5, st.stars, 5);
+       * choosing which pot to save is the number that arrives. */
+      plate(g, cx - 26, STOVE_FRONT_Y + 2, 52, 12, { hi: false, border: P.frameLo });
       const worth = st.worth === undefined ? st.price : st.worth;
-      text(g, '$' + worth, cx + 22, STOVE_FRONT_Y + 5, { font: 'S', color: P.gold, align: 'right' });
+      const notice = stoveNotices[i];
+      if (notice && t - notice.t0 < notice.dur) {
+        text(g, notice.s, cx, STOVE_FRONT_Y + 5, { font: 'S', color: notice.color, align: 'center' });
+      } else {
+        if (!st.ready) {
+          // Predicted cost of playing below the tick; stars themselves live on the order.
+          text(g, '-1', cx - 22, STOVE_FRONT_Y + 5, { font: 'S', color: P.amber });
+          stars(g, cx - 13, STOVE_FRONT_Y + 5, 1, 1);
+        }
+        text(g, '$' + worth, cx + 22, STOVE_FRONT_Y + 5, { font: 'S', color: P.cream, align: 'right' });
+      }
     }
 
     drawPlayer(t);
@@ -973,17 +962,15 @@ export function createScene(container) {
    * stands is written twice: feet on `PLAYER_FOOT`, centred on `PLAYER_CX`,
    * whatever he happens to be.
    *
-   * The model that draws him gives one pose and no way to ask for a second, so
-   * everything he DOES is here: the bob on the strum, the hop when something
-   * comes off the fire, the guitar glowing on the beat and the strings ringing
-   * across the body. A drawn body and a coded performance is the honest split
-   * between what a picture is good at and what code is.
+   * The original illustration carries an idle pose and four Aseprite picking poses.
+   * Input starts a single 300ms gesture; the scene clock holds it on pause.
+   * Guitar light, notes and the small serving hop remain scene effects.
    */
   function drawPlayer(t) {
     const strumming = t - strumAt < 130;
     const hop = t - cookAt < 260 ? -Math.round(Math.sin(((t - cookAt) / 260) * Math.PI) * 3) : 0;
-    const bob = (strumming && !still ? 1 : 0) + (still ? 0 : hop);
-    const drawn = art.frame('player', 'idle');
+    const bob = still ? 0 : hop;
+    const drawn = art.frame('player', playerFrame(t - pickAt, still)) || art.frame('player', 'idle');
     const pulse = still ? 0.5 : 0.5 + 0.5 * Math.sin(t / 300);
 
     if (drawn) {
@@ -1004,7 +991,7 @@ export function createScene(container) {
         rect(g, gx - 6, gy + 1, 13, 1, P.cyan);
       }
       if (t - missAt < 400) {
-        text(g, '?', x + drawn.w + 2, y + 4, { font: 'M', scale: 2, color: P.grey, outline: P.ink });
+        text(g, '?', x + 2, y + 23, { font: 'M', scale: 2, color: P.grey, outline: P.ink });
       }
       return;
     }
@@ -1156,7 +1143,7 @@ export function createScene(container) {
     const waiting = snap.started === false;
     const breathe = waiting && !still && Math.floor(t / 400) % 2 === 1;
     const border = waiting ? (breathe ? P.gold : P.amber)
-      : st.ready ? P.amber : hit === 'cook' ? P.green : hit === 'dirty' ? P.smoke : P.frame;
+      : hit === 'cook' ? P.greenHi : hit === 'dirty' ? P.redHi : st.ready ? P.amber : P.frame;
     plate(g, x, y, CARD_W, CARD_H, { border });
 
     if (!st.dish) {
@@ -1165,45 +1152,30 @@ export function createScene(container) {
       return;
     }
 
-    /* The recipe as chips: done, owed now, still to come. The one that has
-     * just been cooked keeps its green for a moment and is lifted a pixel, so
-     * the progress of the recipe is something you SEE advance rather than
-     * something you notice has advanced. */
-    // No chips in a narrow window: the diagram takes their rows (see
-    // `chordBoxes`), because the instruction outranks the progress.
-    const n = narrow ? 0 : st.steps.length;
-    const chipW = Math.min(18, Math.floor((CARD_W - 6 - (n - 1)) / Math.max(1, n)));
-    const rowW = n * chipW + (n - 1);
-    const fresh = !still && t - (cooked[i] || -1e9) < 420 ? st.step - 1 : -1;
-    let cxp = x + Math.floor((CARD_W - rowW) / 2);
-    for (let k = 0; k < n; k++) {
-      const done = k < st.step;
-      const cur = k === st.step;
-      const lift = k === fresh ? -1 : 0;
-      const cy = y + 3 + lift;
-      rect(g, cxp, cy, chipW, 8, cur ? P.gold : k === fresh ? P.greenHi : P.ink);
-      rect(g, cxp + (cur ? 1 : 0), cy + (cur ? 1 : 0), chipW - (cur ? 2 : 0), 8 - (cur ? 2 : 0),
-        done ? P.greenLo : cur ? P.amber : P.plateHi);
-      /* Not uppercased: `Am` is a chord and `AM` is a different one, and the
-       * small font grew a lowercase m so that this line could stop shouting.
-       * A name too wide for its chip keeps its root and takes a mark: see
-       * `chipText`, and the cyan rule under it here. */
-      const chip = chipText(label(st.steps[k]), chipW);
-      text(g, chip.s, cxp + chipW / 2, cy + 2, {
-        font: 'S', color: done ? P.greenHi : cur ? P.ink : P.grey, align: 'center',
-      });
-      if (chip.cut) {
-        /* THE LETTER IS NOT THE WHOLE CHORD. One cyan rule under the chip,
-         * in the colour this game paints everything the hand is told to do
-         * with — the strings, the flying note, the key on the card. It costs
-         * a row nothing else uses and it is the difference between reading
-         * `C` and going to a C. */
-        rect(g, cxp, cy + 8, chipW, 1, P.cyanHi);
-        tip('altered', ['THAT CHIP IS CUT SHORT', 'A CYAN RULE UNDER A STEP MEANS THE LETTER IS NOT THE WHOLE CHORD',
-          'THE BIG NAME AND THE FINGERING ON THE CARD ARE THE WHOLE OF IT']);
+    // Open chalk brackets, written on the board rather than boxed in metal.
+    // Equal widths keep short names centred; broken ends soften the rules.
+    const recipe = recipeLayout(st, i, GEO);
+    if (recipe.cells.length) {
+      for (const cell of recipe.cells) {
+        const cx = x + cell.x - recipe.x;
+        const edge = cell.state === 'next' ? '#8c7845' : '#686352';
+        rect(g, cx + 2, y + 11, cell.w - 5, 1, edge);
+        rect(g, cx, y + 8, 1, 3, edge);
+        rect(g, cx + 1, y + 11, 1, 1, P.plateHi);
+        rect(g, cx + cell.w - 1, y + 8, 1, 2, edge);
+        rect(g, cx + cell.w - 2, y + 10, 1, 1, edge);
+        text(g, cell.name, cx + cell.w / 2, y + 3, {
+          font: 'M', color: cell.state === 'next' ? P.gold : P.cream, align: 'center',
+        });
       }
-      cxp += chipW + 1;
-    }
+      if (recipe.hidden) {
+        const moreX = x + recipe.more.x - recipe.x;
+        rect(g, x + recipe.more.dividerX - recipe.x, y + 3, 1, 7, '#686352');
+        text(g, (recipe.hidden > 9 ? '>>' : '+' + recipe.hidden), moreX, y + 4, { font: 'S', color: P.amber });
+      }
+    } else text(g, 'LAST STEP', x + 4, y + 4, { font: 'S', color: P.gold });
+    text(g, (st.step + 1) + '/' + st.steps.length, x + 4, y + 28,
+      { font: 'S', color: P.greyHi });
 
     /* The chord owed now, big; and how many pans want it. It jumps a pixel on
      * the strum that lands on it: with five cards up, that is how you see
@@ -1226,13 +1198,13 @@ export function createScene(container) {
       /* Beside the chord when the chord leaves room, and under it when it does
        * not: `F#m` at double size runs to `x + 38`, and a `^F` printed at
        * `x + 28` landed on its last letter. Below, it takes the right end of
-       * the `2 POTS` row, which that label never reaches. */
-      const wide = measure(st.wants || '', 'M', 2) > 23;
+       * the timer row, above the SEC caption. */
+      const wide = measure(previewName(st.wants || ''), 'M', 2) > 23;
       if (k && !wide) text(g, k, x + 28, y + 22, { font: 'S', color: P.greyHi });
-      if (k && wide) text(g, k, x + 38 - measure(k, 'S'), y + 28, { font: 'S', color: P.greyHi });
+      if (k && wide) text(g, k, x + 38 - measure(k, 'S'), y + 35, { font: 'S', color: P.greyHi });
     }
 
-    /* HOW MANY POTS WANT THIS CHORD, in the row the pips used to have.
+    /* HOW MANY POTS WANT THIS CHORD, beside the recipe progress counter.
      *
      * The pips were one per strum the step asked for, and they were the rule
      * made visible while the rule was a count. A step is one chord now — there
@@ -1248,9 +1220,8 @@ export function createScene(container) {
        * across the whole card disappears under it — which is exactly what the
        * first version of this row did. `2 POTS` fits in what is left, and the
        * chord it wants is the big letter directly above. */
-      const pots = together + ' POTS';   // not `label`: this file imports one
-      rect(g, x + 3, y + 27, measure(pots, 'S') + 4, 7, P.ink);
-      text(g, pots, x + 5, y + 28, { font: 'S', color: P.cyanHi });
+      const pots = together + 'POTS';
+      text(g, pots, x + 19, y + 28, { font: 'S', color: P.gold });
     }
 
     /* The diagram, on the vector layer when there is one, because it is the
@@ -1271,7 +1242,7 @@ export function createScene(container) {
     const life = Math.max(0, st.life || 0);
     const secs = Math.ceil(life);
     const urgent = life < 3;
-    const pulse = urgent && !still && Math.floor(t / 180) % 2 === 1;
+    const pulse = urgent && !still && Math.floor(t / 300) % 2 === 1;
     if (waiting) {
       /* No clock is running, so no clock is shown: the row says PLAY, in the
        * same breath as the border, and the card explains itself without the
@@ -1282,9 +1253,14 @@ export function createScene(container) {
       text(g, 'PLAY', x + 4, y + 34, { font: 'M', color: breathe ? P.gold : P.amber });
       text(g, 'TO OPEN', x + 4, y + 43, { font: 'S', color: P.grey });
     } else {
-      const lifeColor = urgent ? (pulse ? P.white : P.redHi) : life > 6 ? P.white : P.amber;
+      // Urgency is local to the clock. Digits never blink or change contrast.
+      if (urgent) {
+        rect(g, x + 3, y + 34, 34, 14, '#492420');
+        rect(g, x + 2, y + 34, 1, 14, pulse ? P.redHi : P.red);
+      }
+      const lifeColor = urgent ? P.redHi : life > 6 ? P.cream : P.amber;
       text(g, String(secs), x + 4, y + 34, { font: 'M', scale: 2, color: lifeColor });
-      text(g, 'SEC', x + 6 + measure(String(secs), 'M', 2), y + 43, { font: 'S', color: P.grey });
+      text(g, 's', x + 6 + measure(String(secs), 'M', 2), y + 43, { font: 'S', color: urgent ? P.redHi : P.grey });
     }
 
     // The heat bar with the line it has to clear.
@@ -1292,21 +1268,12 @@ export function createScene(container) {
     rect(g, bx, by, bw, bh, P.ink);
     rect(g, bx + 1, by + 1, bw - 2, bh - 2, P.plateHi);
     const fillW = Math.round((bw - 2) * (st.heatPct / 100));
-    const fillColor = st.ready ? (Math.floor(t / 200) % 2 || still ? P.greenHi : P.green) : P.green;
+    const fillColor = st.ready ? P.green : P.amberLo;
     rect(g, bx + 1, by + 1, fillW, bh - 2, fillColor);
-    rect(g, bx + 1, by + 1, fillW, 1, P.greenHi);
+    rect(g, bx + 1, by + 1, fillW, 1, st.ready ? P.greenHi : P.amber);
     const tickX = bx + 1 + Math.round((bw - 2) * (st.readyPct / 100));
     rect(g, tickX, by - 1, 1, bh + 2, P.white);
-    /* And the word on the bar, which is a PRICE and not a wall.
-     *
-     * The bar has been a heat gauge, and under the line it meant the rest
-     * would cook nothing — so the word there was `HEAT`, a refusal. Under the
-     * line the step still cooks and the dish is spoiled, so what the word has
-     * to say is what playing it now COSTS: one star. Above the line there is
-     * nothing to warn anybody about, so nothing is said. */
-    if (!st.ready) {
-      text(g, '-1 STAR', bx + bw / 2, by, { font: 'S', color: P.redHi, align: 'center', outline: P.ink });
-    }
+    // The cost warning lives on the stove tag, leaving this gauge unobstructed.
   }
 
   /**
@@ -1351,9 +1318,9 @@ export function createScene(container) {
         rect(g, cx - 1, dy + 3, 1, 1, P.redHi); rect(g, cx + 1, dy + 3, 1, 1, P.redHi);
         rect(g, cx - 2, dy + 4, 1, 1, P.redHi); rect(g, cx + 2, dy + 4, 1, 1, P.redHi);
       } else if (st.open) {
-        rect(g, cx - 1, dy, 3, 1, P.cyanHi);
-        rect(g, cx - 2, dy + 1, 1, 3, P.cyanHi); rect(g, cx + 2, dy + 1, 1, 3, P.cyanHi);
-        rect(g, cx - 1, dy + 4, 3, 1, P.cyanHi);
+        rect(g, cx - 1, dy, 3, 1, P.gold);
+        rect(g, cx - 2, dy + 1, 1, 3, P.gold); rect(g, cx + 2, dy + 1, 1, 3, P.gold);
+        rect(g, cx - 1, dy + 4, 3, 1, P.gold);
       }
     });
 
@@ -1387,7 +1354,7 @@ export function createScene(container) {
    * tells them apart, which is what a fingering is for.
    */
   function drawChordName(name, x, y, color) {
-    const s = label(name);
+    const s = previewName(name);
     if (measure(s, 'M', 2) <= 36) { text(g, s, x, y, { font: 'M', scale: 2, color }); return; }
     const m = /^([A-G][#b]?)(.*)$/.exec(s) || [s, s, ''];
     const w = text(g, m[1], x, y, { font: 'M', scale: 2, color });
@@ -1528,7 +1495,12 @@ export function createScene(container) {
    * kind of thing as the badge that says which input is live.
    */
   function drawDiag() {
-    const lines = diag.slice(0, 6);
+    // The detector header carries many counters. Wrap it inside the plate;
+    // even a single long error token must not run out of the game's viewport.
+    const maxW = W - 24;
+    const chunks = Math.floor((maxW + 1) / 4);
+    const lines = diag.flatMap((l) => wrapPx(l, maxW, 'S').lines
+      .flatMap((line) => line.match(new RegExp('.{1,' + chunks + '}', 'g')) || [''])).slice(0, 10);
     const W_ = Math.min(W - 8, Math.max(...lines.map((l) => measure(l, 'S'))) + 16);
     const H_ = 8 + lines.length * 7 + 4;
     const x = Math.round(W / 2 - W_ / 2);
@@ -1694,6 +1666,7 @@ export function createScene(container) {
     switch (name) {
       case 'seat':
         arrive[e.station] = t;
+        delete stoveNotices[e.station];
         delete ghosts[e.station];
         delete smoke[e.station];
         delete drops[e.station];
@@ -1704,6 +1677,7 @@ export function createScene(container) {
         break;
       case 'strum': {
         strumAt = t;
+        pickAt = t;
         const color = e.dirty ? P.smoke : e.together > 1 ? P.gold : P.cyan;
         for (const i of e.stations || []) {
           notes.push({
@@ -1721,6 +1695,7 @@ export function createScene(container) {
         break;
       }
       case 'miss':
+        pickAt = t;
         missAt = t;
         bursts.push({ x: gx, y: gy, t0: t, dur: 260, color: P.smoke });
         break;
@@ -1729,6 +1704,7 @@ export function createScene(container) {
        * because "I played the right one and nothing moved" is the one thing a
        * player cannot work out from an empty pot. */
       case 'rough':
+        pickAt = t;
         missAt = t;
         bursts.push({ x: gx, y: gy, t0: t, dur: 260, color: P.smoke });
         floats.push({ text: 'MUDDY', x: gx, y: gy - 14, t0: t, dur: 900, color: P.smoke, font: 'S' });
@@ -1757,14 +1733,10 @@ export function createScene(container) {
           const spoiled = late.has(i);
           flash[i] = { kind: spoiled ? 'dirty' : 'cook', t0: t };
           bursts.push({ x: slotCX(i), y: GEO.PAN_BASE_Y - 18, t0: t, dur: 420, color: spoiled ? P.smoke : P.greenHi, spin: 0.5 });
-          floats.push({
-            /* From under the card up to its edge, never into it: started two
-             * rows under the card and rising fourteen, the word spent the
-             * middle of its life across the heat bar — green on green. It
-             * starts over the pan now and stops where the card begins. */
-            text: spoiled ? '-1 STAR' : 'COOKED', x: slotCX(i), y: GEO.CARD_Y + GEO.CARD_H + 16,
-            t0: t, dur: spoiled ? 1100 : 800, color: spoiled ? P.redHi : P.greenHi, font: 'S',
-          });
+          stoveNotices[i] = {
+            s: spoiled ? '-1 STAR' : 'COOKED', t0: t,
+            dur: spoiled ? 1100 : 800, color: spoiled ? P.redHi : P.greenHi,
+          };
           if (spoiled) shakes[i] = t;
         }
         if (late.size) tip('late', ['UNDER THE LINE: ONE STAR OFF', 'THE STEP STILL COOKS, THE DISH PAYS LESS', 'CHANGE BEFORE THE BAR DROPS UNDER THE TICK']);
@@ -1916,6 +1888,11 @@ export function createScene(container) {
 
   /** Holds the picture: `{ title, sub }` while paused, `null` to resume. */
   function setPaused(state) {
+    if (state && pausedAt === null) pausedAt = performance.now();
+    if (!state && pausedAt !== null) {
+      pausedMs += performance.now() - pausedAt;
+      pausedAt = null;
+    }
     paused = state ? { title: state.title || 'PAUSED', sub: state.sub || '' } : null;
   }
 
@@ -1934,6 +1911,8 @@ export function createScene(container) {
 
   return {
     update, event, setHints, setSeed, setCoach, setTimes, say, setPaused, setClosing, setMenu, setDiag, onPointer, destroy,
+    setChefStudy(on) { chefStudy = !!on; },
+    setCustomerPose(pose) { customerPose = ['wait', 'impatient', 'happy', 'angry'].includes(pose) ? pose : null; },
     get stats() { return stats; },
   };
 }

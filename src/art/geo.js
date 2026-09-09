@@ -21,8 +21,8 @@
  * The kitchen band is read from the bottom up. The pans are the second thing
  * on the screen after the cards, so they get thirty pixels of height and the
  * cards give up sixteen to pay for it: a card is fifty-six tall now, and what
- * it lost was the step counter and the roman numerals, never the chord, the
- * seconds or the fingering.
+ * the step counter and upcoming chords share the existing lettering space;
+ * the current chord, seconds and fingering remain prominent.
  */
 
 export const GEO = {
@@ -53,11 +53,7 @@ export const GEO = {
 
   HOOD_Y: 134, HOOD_H: 8,       // the extractor hood, top of the kitchen
   PASS_Y: 162,                  // the pass: the cooks' worktop edge, the ticket rail
-  /* Where the two cooks stand at the pass, and these are not free numbers.
-   * Each one has to sit inside ONE card's width, because the card is what
-   * hides the cook below the rail — a cook straddling the gap between two
-   * cards shows a flat cut through the middle of him. The backdrop leaves the
-   * hanging rail bare over both of them for the same reason. */
+  // Two workstations behind the main pass, with their bodies hidden by it.
   COOK_CX: [126, 300],
   /* How far ABOVE the kitchen band the cooks are hung, and why they are hung
    * at all: the band is thirty rows and a sprite cut to thirty filled it with

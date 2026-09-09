@@ -451,7 +451,7 @@ export const NAMES = [
 ];
 
 /** How many portraits the drawing has to have. */
-export const FACES = 12;
+export const FACES = 17;
 
 /*
  * The service, and how it tightens.

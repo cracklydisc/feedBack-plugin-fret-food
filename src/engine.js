@@ -1,74 +1,25 @@
 /*
- * ─────────────────────────────────────────────────────────────────────────
- * THE KITCHEN ENGINE, which does not know a screen exists.
- * ─────────────────────────────────────────────────────────────────────────
+ * THE KITCHEN ENGINE — deterministic, independent of the screen and detector.
+ * Time enters through tick(dtMs), recognised chords through strum(name, quality).
  *
- * No DOM, no timers, no `performance.now()`: time comes in through
- * `tick(dtMs)` and chords come in through `strum(name)`. Everything else is a
- * deterministic state machine.
+ * One accepted chord cooks one step in EVERY pot currently requesting it.
+ * A step refills that pot; between steps it cools. Above READY the next step
+ * is clean, below it the dish loses a star, and at zero the customer leaves.
+ * FINGER_GRACE accounts for the distance between fingerings. The challenge
+ * combines changing shape with deciding which of several pots to serve.
  *
- * That is a decision, not tidiness for its own sake. A game you drive by
- * playing a guitar cannot be retested by hand every time a number moves, so a
- * whole service runs from a test in milliseconds, on exactly the numbers the
- * player will see. The detector, the keyboard and the scripted service are
- * three different sources for one input, and the engine cannot tell which of
- * them is talking.
+ * A repeated chord cannot cook the same pot again within STEP_GAP_MS. This
+ * protects against a single slow guitar sweep being detected multiple times.
+ * Changes to a different chord are not held behind that repeat-only floor.
+ * Quality below CLEAN advances nothing and is not charged as a wrong chord.
  *
- * ── THE RULES, in one place ─────────────────────────────────────────────
+ * Earlier versions counted several strums and then a beat of silence. The
+ * microphone's repeated onset detections made those counts unreliable; that
+ * is no longer the gameplay contract. The current transition is documented
+ * beside strum(), including the reason the repeat protection exists.
  *
- * Every station has a customer with a DISH, and a dish is a chord
- * progression written as BARS. The step in front of a pot cooks like this:
- *
- *     the step's own number of strums on the chord it wants,
- *     then a beat of SILENCE.
- *
- * The silence after the strums is the REST, and nobody plays it: not playing
- * produces it. Play the bar and the step cooks — always. A step is `4 x C` at
- * the opening and `2 x C, 2 x G, 3 x Am` on a dish that costs more, so a
- * recipe is a chord chart and the dish says how long its bars are.
- *
- * Heat rises when you play the chord that station wants right now, on a curve
- * that rewards the SECOND strum (6, 14, 9, 6, 4, 2): touch and run does not
- * pay, and neither does hammering. Heat falls on its own at the burner's rate,
- * and the burners rise for the whole service.
- *
- * ── WHAT THE HEAT IS FOR, WHICH IS NOT WHETHER YOU COOK ─────────────────
- *
- * Heat decides what a step is WORTH. Under the line (READY) at the moment the
- * bar closes, the step still cooks and the pot takes a mark of soot: a star
- * off, no tip, and it cools faster from there on. A dish can be finished badly
- * all the way to the counter and be worth almost nothing.
- *
- * It used to be a gate — `two strums AND above the line` — and that refused
- * one in five completed gestures when measured against the bot with a
- * realistic ear. The player played the bar, rested, and nothing happened for a
- * reason no gauge on the screen could explain. Nothing else in this game can
- * be done right and fail silently, and this should not have been either.
- *
- * So the only thing that takes a customer away is their own clock. What ends a
- * service is the round trip: the more pots on the counter, the longer it takes
- * to get back to any one of them, and eventually a pot dies while your hands
- * are somewhere else. You run out of hands, not of heat, and `GROW_PER_S`
- * says how fast.
- *
- * One strum heats EVERY station that wants that chord at that moment. It is
- * the only rule that creates a greedy decision: waiting for a second order to
- * come round to the same step costs both of them seconds of life, but cooks
- * them together.
- *
- * ── TWO POTS ON ONE CHORD ───────────────────────────────────────────────
- *
- * It is normal to have two orders wanting the same chord, and normal for one
- * of them to walk in while the other is mid-cycle. Nothing about that can hurt
- * the pot that was already there, and it is worth saying why in one place:
- *
- *   - at the rest each pot is judged on its OWN heat against the same line;
- *   - a pot advances at most one step per rest, whatever else happened.
- *
- * So feeding a newcomer is pure gain and never a risk. What it does do is push
- * them apart again: two pots that cook together move on to the next chord of
- * their own recipes, which are usually different ones, and keeping a pair in
- * step is a thing a player does on purpose rather than something that happens.
+ * Rules remain separate from appearance: customer portraits do not alter
+ * clocks, scoring, recipes, chord acceptance or the number of open pots.
  */
 
 import { dist, changes, shapesAt, NAMES, FACES } from './menu.js';

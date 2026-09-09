@@ -69,7 +69,7 @@ test('a manifest that exists has to be right', () => {
    * game will never ask for — a sheet whose pan is called "pot" instead of
    * "stockpot" draws nothing at all, silently, and the pan just looks empty. */
   const known = new Set([...want.pans, ...want.dishes, ...want.player, ...want.customer,
-    ...want.crowd, ...want.cooks, ...want.props, ...want.spare]);
+    ...want.crowd, ...want.cooks, ...want.chefToss, ...want.props, ...want.spare]);
   const stray = [...new Set(Object.values(json.sheets).flatMap((s) => s.frames))].filter((f) => !known.has(f));
   assert.deepEqual(stray, [], 'frames nothing will ever ask for: ' + stray.join(', '));
 
@@ -127,9 +127,7 @@ test('a drawn sprite fits the band it is drawn in', () => {
       `the player is ${h} tall and reaches ${GEO.PLAYER_FOOT - h}, above the kitchen at ${GEO.KITCHEN_Y}`);
   }
 
-  /* A cook at the pass hangs from the top of the kitchen and everything below
-   * the rail is hidden by a chord card, so he has to be no taller than the
-   * band and no wider than the card that covers him. */
+  /* Each cook fits behind a board at the main worktop. */
   const cooks = cell('cooks');
   if (cooks) {
     const [w, h] = cooks;
@@ -148,9 +146,9 @@ test('a drawn sprite fits the band it is drawn in', () => {
     for (const cx of GEO.COOK_CX) {
       const x = Math.round(cx - w / 2);
       const i = GEO.COOK_CX.indexOf(cx);
-      const card = { x: slotX(Math.floor(cx / GEO.SLOT_W)) + 2, w: GEO.CARD_W };
-      assert.ok(x >= card.x && x + w <= card.x + card.w,
-        `cook ${i} spans ${x}..${x + w} and the card that hides him spans ${card.x}..${card.x + card.w}`);
+      assert.ok(x >= Math.floor(cx / GEO.SLOT_W) * GEO.SLOT_W + 2 && x + w <= Math.floor(cx / GEO.SLOT_W) * GEO.SLOT_W + 2 + GEO.CARD_W,
+        `cook ${i} spans ${x}..${x + w}, outside the board that conceals the lower body`);
+      if (i) assert.ok(x >= GEO.COOK_CX[i - 1] + w / 2, 'staff silhouettes overlap');
     }
   }
 

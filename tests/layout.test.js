@@ -21,11 +21,12 @@ import assert from 'node:assert/strict';
 import { paper, distinct, hits } from './paper.js';
 import { GEO, slotX } from '../src/art/geo.js';
 import { P } from '../src/art/pix.js';
-import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText, chipText } from '../src/art/hud.js';
+import { barLayout, stripLayout, chordBoxes, bubbleLayout, bubbleLines, coachText } from '../src/art/hud.js';
 import { inventMenu, FAMILIES } from '../src/invent.js';
 import { wrap, measure } from '../src/art/font.js';
 import { chordSvg, barres, window_ } from '../src/art/chordsvg.js';
 import { diagram, CHORDS, label } from '../src/menu.js';
+import { recipeLayout, previewName } from '../src/art/recipe.js';
 import { keyFor } from '../src/input/keys.js';
 import { MENU, NAMES, COOKWARE } from '../src/menu.js';
 import { FONTS } from '../src/art/font.js';
@@ -90,6 +91,7 @@ async function drawn(snap, opts) {
   const { createScene } = await import('../src/scene.js?' + Math.random());
   const scene = createScene(page.container);
   if (o.hints) scene.setHints(true);
+  if (o.diag) scene.setDiag(o.diag);
   scene.update(snap);
   const t0 = o.at === undefined ? performance.now() : o.at - 40;
   page.frame(t0);                       // the first frame builds every sprite
@@ -680,7 +682,7 @@ test('the card says when a chord is wanted at another pot too', async () => {
     /* Only the cards that have a ticket on them: the closed ones print `OPENS
      * AT LUNCH` across this same row, which is their own business. */
     return runs.filter((r) => r.y >= GEO.CARD_Y + 27 && r.y < GEO.CARD_Y + 34
-      && Math.floor(r.x / GEO.SLOT_W) < n);
+      && Math.floor(r.x / GEO.SLOT_W) < n && r.x % GEO.SLOT_W >= 21);
   };
 
   assert.equal((await shared(1)).length, 0, 'one pot wants it: there is nothing to say');
@@ -714,31 +716,110 @@ test('a long chord name stays in its column, big or small', async () => {
   noPileUp(onPlate(runs));
 });
 
-test('a chip never prints one chord where another was ordered', () => {
-  /* The recipe chips are eight pixels wide on a long dish and a chord name
-   * can be five glyphs, so some names cannot be printed whole. What a chip
-   * must never do is print `C` for a Cadd9: a session with a guitar said the
-   * preview showed the same letter for two different chords and the hand
-   * went to the wrong shape. A name that does not fit is cut to its root AND
-   * marked, and the scene paints a cyan rule under a marked chip. */
+test('eight-step recipes preview two full upcoming chords, including both F shapes', () => {
   for (const chord of CHORDS) {
-    const name = label(chord);
-    for (const w of [8, 11, 14, 17, 18]) {
-      const chip = chipText(name, w);
-      assert.ok(chip.s, chord + ' printed nothing at ' + w + 'px');
-      assert.ok(measure(chip.s, 'S') <= w, chord + ' overflows a ' + w + 'px chip: ' + chip.s);
-      if (chip.cut) {
-        assert.ok(name.startsWith(chip.s), chord + ' was cut to something that is not its root: ' + chip.s);
-        assert.notEqual(chip.s, name);
-      } else {
-        assert.equal(chip.s, name, chord + ' says it fits and printed something else');
-      }
+    const steps = Array(8).fill(chord);
+    const recipe = recipeLayout(worstStation(0, { steps, step: 3 }), 0, GEO);
+    assert.equal(recipe.cells.length, 2);
+    for (const cell of recipe.cells) {
+      assert.equal(cell.name, previewName(chord));
+      assert.ok(measure(cell.name, 'M') < cell.w, chord + ' needs room for every letter');
+      assert.ok(cell.x >= recipe.x + 1 && cell.x + cell.w <= recipe.x + recipe.w - 1);
+      assert.ok(cell.y >= GEO.CARD_Y + 2 && cell.y + cell.h <= GEO.CARD_Y + 12);
+      assert.ok(cell.x + cell.w <= recipe.more.dividerX - 2, 'chord brackets leave air before the continuation divider');
+    }
+    assert.ok(recipe.more.x >= recipe.more.dividerX + 2);
+    assert.ok(recipe.more.x + recipe.more.w <= recipe.x + recipe.w - 2);
+    assert.deepEqual(recipe.cells.map(c => c.index), [4, 5]);
+    assert.equal(recipe.cells[0].state, 'next');
+    assert.equal(recipe.hidden, 2);
+    assert.equal(recipe.next, chord);
+  }
+  assert.equal(previewName('Cadd9'), 'Cadd9');
+  assert.notEqual(previewName('F'), previewName('F+'));
+  assert.equal(recipeLayout(null, 0, GEO), null);
+  assert.equal(recipeLayout({ dish: null, steps: [] }, 0, GEO), null);
+});
+
+test('two upcoming chords stay readable at every step, including narrow windows', async () => {
+  const steps = ['Cadd9', 'Gsus4', 'Dsus4', 'Asus4', 'F+', 'F', 'G/B', 'Asus2'];
+  for (const w of [600, 960]) {
+    for (let step = 0; step < steps.length; step++) {
+      const stations = Array.from({ length: GEO.SLOTS }, (_, i) => worstStation(i, { steps, step, wants: steps[step] }));
+      const { runs, ops } = await drawn(worstSnapshot({ stations }), { w, hints: true });
+      inScreen(runs);
+      inCards(onPlate(runs));
+      noPileUp(onPlate(runs));
+      const glyphs = ops.filter((op) => op.kind === 'glyph' && op.y >= GEO.CARD_Y + 3 && op.y + op.h <= GEO.CARD_Y + 10);
+      const upcoming = steps.slice(step + 1, step + 3);
+      const more = Math.max(0, steps.length - step - 3);
+      const expected = upcoming.length ? upcoming.reduce((n, c) => n + previewName(c).replace(/ /g, '').length, 0) + (more ? 2 : 0) : 8;
+      assert.equal(glyphs.length, GEO.SLOTS * expected, 'no upcoming chord glyph is omitted at width ' + w);
+      const recipe = recipeLayout(stations[0], 0, GEO);
+      assert.equal(recipe.next, steps[step + 1] || null);
+      assert.equal(recipe.hidden, more);
     }
   }
-  // The whole point, stated as one case: at every width, either the chip says
-  // Cadd9 or it is marked. It is never an unmarked C.
-  for (let w = 4; w <= 40; w++) {
-    const chip = chipText('Cadd9', w);
-    assert.ok(chip.s === 'Cadd9' || chip.cut, 'a Cadd9 read as a plain ' + chip.s + ' at ' + w + 'px');
+});
+
+test('step feedback stays on the stove tag and never crosses the heat gauge', async () => {
+  for (const spoiled of [false, true]) {
+    for (const after of [40, 350, 700]) {
+      const { runs, ops } = await drawn(worstSnapshot(), {
+        events: [['cycle', { stations: [0], late: spoiled ? [0] : [] }]], after,
+      });
+      const tag = runs.filter(r => r.y === GEO.STOVE_FRONT_Y + 5 && r.x < GEO.SLOT_W);
+      assert.equal(tag.length, 1, 'one stationary message replaces the price');
+      assert.equal(tag[0].n, 6, 'all six inked letters of COOKED / -1 STAR remain visible');
+      assert.ok(tag[0].x >= GEO.SLOT_W / 2 - 23 && tag[0].x + tag[0].w <= GEO.SLOT_W / 2 + 23);
+      // Use the painted track: a dirty hit can shift the whole board by a pixel.
+      const gauges = ops.filter(op => op.kind === 'rect' && op.color === P.ink
+        && op.w === GEO.CARD_W - 8 && op.h === 5 && op.y >= GEO.CARD_Y + 47 && op.y <= GEO.CARD_Y + 51);
+      assert.equal(gauges.length, GEO.SLOTS);
+      const overGauge = ops.filter(op => op.kind === 'glyph' && gauges.some(gauge => hits(op, gauge)));
+      assert.equal(overGauge.length, 0, 'the heat gauge and its tick stay readable during feedback');
+      noPileUp(onPlate(runs));
+    }
   }
+});
+
+test('urgent clocks retain every digit in both pulse phases and reduced motion', async () => {
+  const snap = worstSnapshot({ stations: Array.from({ length: GEO.SLOTS }, (_, i) => worstStation(i, { life: 1.8 })) });
+  for (const opts of [{ at: 3000 }, { at: 3300 }, { still: true }]) {
+    const { ops } = await drawn(snap, opts);
+    const digits = ops.filter(op => op.kind === 'glyph' && op.y === GEO.CARD_Y + 34 && op.h === 14);
+    assert.equal(digits.length, GEO.SLOTS, 'every urgent station keeps its timer');
+    for (const digit of digits) assert.ok(digit.x % GEO.SLOT_W < 38, 'digits stay in the clock column');
+  }
+});
+
+test('pausing holds the actual scene and preserves in-flight feedback', async (t) => {
+  let time = 1000;
+  t.mock.method(performance, 'now', () => time);
+  const page = paper();
+  const { createScene } = await import('../src/scene.js?pause-check');
+  const scene = createScene(page.container);
+  try {
+    scene.update(worstSnapshot());
+    page.frame(time);
+    scene.event('strum', { chord: 'Am', stations: [0, 1], together: 2, gain: 4 });
+    scene.setPaused({ title: 'PAUSED' });
+    const first = page.capture(() => page.frame(time + 20));
+    time += 15000;
+    const later = page.capture(() => page.frame(time));
+    assert.deepEqual(later.ops, first.ops, 'neither the scenery nor feedback ages while paused');
+    scene.setPaused(null);
+    const resumed = page.capture(() => page.frame(time));
+    assert.ok(resumed.ops.length > 0, 'the scene resumes drawing');
+  } finally { scene.destroy(); }
+});
+
+test('the diagnostic header and long error tokens stay on screen', async () => {
+  const diag = [
+    'EAR MEDIUM - NOTES - STRUMS 123456 NAMED 123456 COOKED 123456 MUDDY 123456 HELD 123456 QUICK 123456 UNNAMED 123456',
+    'X'.repeat(260),
+    'C3 E3 G3 C4 E4 - Cadd9 0.95 NAMED',
+  ];
+  const { runs } = await drawn(worstSnapshot(), { diag });
+  inScreen(runs);
 });

@@ -33,6 +33,12 @@
  * a path written out here is right in one of the two and wrong in the other.
  * The module's own URL knows which it is.
  */
+import { FACES } from '../menu.js';
+import { CHEF_TOSS, HYBRID_CHEFS } from './chef.js';
+import { PLAYER_ART } from './player.js';
+
+export const CROWD_COUNT = 18;
+
 const BASE = new URL('../../assets/art/', import.meta.url).href;
 
 /*
@@ -73,10 +79,11 @@ const BASE = new URL('../../assets/art/', import.meta.url).href;
  */
 const DRAWN = new Set([
   'player',                          // the cook with the guitar
-  'cooks',                           // twenty busts, two of them at the pass
-  'crowd-a', 'crowd-b',              // the room's background people, six to a sheet
+  CHEF_TOSS.sheet,                   // animated Aseprite chef, native-size bust
+  ...HYBRID_CHEFS.map((chef) => chef.sheet),
+  'crowd-a', 'crowd-b', 'crowd-c',              // the room's background people, six to a sheet
   'mark',                            // the house badge
-  ...Array.from({ length: 12 }, (_, i) => 'cust-' + String(i + 1).padStart(2, '0')),
+  ...Array.from({ length: FACES }, (_, i) => 'cust-' + String(i + 1).padStart(2, '0')),
 ]);
 
 /*
@@ -267,12 +274,12 @@ export function expectedFrames(cookware, dishIds) {
   return {
     pans: cookware.slice(),
     dishes: dishIds.slice(),
-    player: ['idle', 'strum', 'flourish', 'slump'],
+    player: ['idle', 'strum', ...PLAYER_ART.strumFrames, 'flourish', 'slump'],
     customer: ['wait', 'impatient', 'happy', 'angry'],
-    /* The room's background people. Twelve of them, indexed rather than named,
+    /* The room's background people. Indexed rather than named,
      * because they are scenery: the scene picks one per standing spot from a
      * hash and none of them is anybody. */
-    crowd: Array.from({ length: 12 }, (_, i) => 'crowd-' + String(i).padStart(2, '0')),
+    crowd: Array.from({ length: CROWD_COUNT }, (_, i) => 'crowd-' + String(i).padStart(2, '0')),
     /* The kitchen's staff, and the props on its shelves. Indexed for the same
      * reason as the crowd, plus one of its own: both sheets are drawn as a
      * crowded grid — which is the only way to get a sprite small enough for
@@ -280,6 +287,7 @@ export function expectedFrames(cookware, dishIds) {
      * subjects out in the order they were asked for. A numbered slot is an
      * honest name for a cell whose contents are chosen by looking. */
     cooks: Array.from({ length: 20 }, (_, i) => 'cook-' + String(i).padStart(2, '0')),
+    chefToss: [...CHEF_TOSS.frames, ...HYBRID_CHEFS.flatMap((chef) => chef.frames)],
     props: Array.from({ length: 30 }, (_, i) => 'prop-' + String(i).padStart(2, '0')),
     /* And the spares, which are the honest name for a cell the sheet HAS and
      * the game does not use. Asked for nine pans the model draws eleven

@@ -5,14 +5,18 @@
   ],
   "sheets": {
     "player": {
-      "cols": 1,
+      "cols": 5,
       "rows": 1,
       "cell": [
         60,
         104
       ],
       "frames": [
-        "idle"
+        "idle",
+        "strum-0",
+        "strum-1",
+        "strum-2",
+        "strum-3"
       ]
     },
     "cust-01": {
@@ -20,7 +24,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -34,7 +38,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -48,7 +52,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -62,7 +66,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -76,7 +80,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -90,7 +94,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -104,7 +108,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -118,7 +122,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -132,7 +136,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -146,7 +150,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -160,7 +164,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -174,7 +178,7 @@
       "rows": 2,
       "cell": [
         72,
-        52
+        54
       ],
       "frames": [
         "wait",
@@ -220,7 +224,7 @@
       "cols": 5,
       "rows": 4,
       "cell": [
-        30,
+        34,
         34
       ],
       "frames": [
@@ -290,8 +294,8 @@
       "cols": 3,
       "rows": 2,
       "cell": [
-        36,
-        64
+        42,
+        66
       ],
       "frames": [
         "crowd-00",
@@ -306,8 +310,8 @@
       "cols": 3,
       "rows": 2,
       "cell": [
-        30,
-        57
+        42,
+        66
       ],
       "frames": [
         "crowd-06",
@@ -316,6 +320,144 @@
         "crowd-09",
         "crowd-10",
         "crowd-11"
+      ]
+    },
+    "cust-13": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        54
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-14": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        54
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "crowd-c": {
+      "cols": 3,
+      "rows": 2,
+      "cell": [
+        42,
+        66
+      ],
+      "frames": [
+        "crowd-12",
+        "crowd-13",
+        "crowd-14",
+        "crowd-15",
+        "crowd-16",
+        "crowd-17"
+      ]
+    },
+    "chef-toss": {
+      "cols": 8,
+      "rows": 1,
+      "cell": [
+        56,
+        30
+      ],
+      "frames": [
+        "toss-0",
+        "toss-1",
+        "toss-2",
+        "toss-3",
+        "toss-4",
+        "toss-5",
+        "toss-6",
+        "toss-7"
+      ]
+    },
+    "chef-male-hybrid": {
+      "cols": 8,
+      "rows": 1,
+      "cell": [
+        48,
+        30
+      ],
+      "frames": [
+        "hybrid-male-0",
+        "hybrid-male-1",
+        "hybrid-male-2",
+        "hybrid-male-3",
+        "hybrid-male-4",
+        "hybrid-male-5",
+        "hybrid-male-6",
+        "hybrid-male-7"
+      ]
+    },
+    "chef-female-hybrid": {
+      "cols": 6,
+      "rows": 1,
+      "cell": [
+        48,
+        30
+      ],
+      "frames": [
+        "hybrid-female-0",
+        "hybrid-female-1",
+        "hybrid-female-2",
+        "hybrid-female-3",
+        "hybrid-female-4",
+        "hybrid-female-5"
+      ]
+    },
+    "cust-15": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        54
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-16": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        54
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
+      ]
+    },
+    "cust-17": {
+      "cols": 2,
+      "rows": 2,
+      "cell": [
+        72,
+        54
+      ],
+      "frames": [
+        "wait",
+        "impatient",
+        "happy",
+        "angry"
       ]
     }
   }

@@ -22,7 +22,7 @@
  * every frame.
  */
 
-import { P, rect, dither, oval, stamp, sprite, sprited, hash, canvas, blit } from './pix.js';
+import { P, ORDER_STAR, rect, dither, oval, stamp, sprite, sprited, hash, canvas, blit } from './pix.js';
 
 /* ── fire ─────────────────────────────────────────────────────────────────
  *
@@ -241,8 +241,9 @@ const EMPTY = '#2a2422';
 
 export const PANS = {
   skillet(g, cx, baseY, soot) {
-    const w = 44, h = 9, x = cx - w / 2, y = baseY - h;
-    body(g, x, y, w, h, P.steelLo, P.steelInk, P.steel);
+    const w = 44, h = 12, x = cx - w / 2, y = baseY - h;
+    body(g, x, y, w, h, '#344b55', '#1c2d36', '#76919a');
+    rect(g, x + 5, y + h - 3, w - 12, 1, '#506b72');
     // The long handle, with the rivet where it meets the pan.
     rect(g, x + w, y + 1, 17, 4, I); rect(g, x + w, y + 2, 15, 2, P.woodInk); rect(g, x + w, y + 2, 15, 1, P.woodLo);
     rect(g, x + w + 14, y + 2, 1, 2, P.steelHi);
@@ -251,21 +252,23 @@ export const PANS = {
   },
   saucepan(g, cx, baseY, soot) {
     const w = 30, h = 18, x = cx - w / 2, y = baseY - h;
-    body(g, x, y, w, h, P.steel, P.steelLo, P.steelHi);
+    body(g, x, y, w, h, P.copper, P.copperLo, P.copperHi);
     rect(g, x + w, y + 3, 15, 4, I); rect(g, x + w, y + 4, 13, 2, P.woodInk); rect(g, x + w, y + 4, 13, 1, P.woodLo);
-    rect(g, x, y + 10, w, 1, P.steelLo);
+    rect(g, x + 5, y + 5, 2, 2, P.copperHi);
+    rect(g, x + w - 4, y + 5, 2, 2, P.steelHi);
+    rect(g, x, y + h - 3, w, 1, P.copperLo);
     sootMarks(g, x, y, w, h, soot);
     return surface(g, cx, y, w - 2, 9, EMPTY);
   },
   stockpot(g, cx, baseY, soot) {
     const w = 36, h = 26, x = cx - w / 2, y = baseY - h;
-    body(g, x, y, w, h, P.steel, P.steelLo, P.steelHi);
+    body(g, x, y, w, h, '#3f827b', '#24524e', '#a0c9b7');
     // Two loop handles.
     rect(g, x - 6, y + 5, 6, 5, I); rect(g, x + w, y + 5, 6, 5, I);
     rect(g, x - 5, y + 6, 3, 3, P.steelHi); rect(g, x + w + 2, y + 6, 3, 3, P.steelHi);
     rect(g, x - 4, y + 7, 2, 1, P.steel); rect(g, x + w + 2, y + 7, 2, 1, P.steel);
-    rect(g, x, y + 12, w, 1, P.steelLo);
-    rect(g, x, y + 13, w, 1, P.steelHi);
+    rect(g, x + 5, y + 12, w - 10, 1, '#72a89a');
+    rect(g, x + 5, y + h - 4, w - 10, 1, '#24524e');
     sootMarks(g, x, y, w, h, soot);
     return surface(g, cx, y, w - 2, 10, EMPTY);
   },
@@ -353,7 +356,7 @@ export const COLD = new Set(['tub', 'bowl']);
 
 /** How far each drawing reaches from (cx, baseY): left, right, up. */
 export const BOX = {
-  skillet: { l: 24, r: 42, up: 16 },
+  skillet: { l: 24, r: 42, up: 19 },
   saucepan: { l: 17, r: 32, up: 24 },
   stockpot: { l: 25, r: 26, up: 33 },
   casserole: { l: 27, r: 28, up: 28 },
@@ -607,17 +610,18 @@ export function bricks(g, x, y, w, h, seed) {
 /** Kitchen tiles: 8x8 cream squares with a grout line, a few of them darker
  *  or chipped so the wall reads as a wall. */
 export function tiles(g, x, y, w, h, seed) {
-  rect(g, x, y, w, h, '#8a8478');
-  const T = 8;
+  // Quiet, warm grout: the wall stays behind the staff and chalk lettering.
+  rect(g, x, y, w, h, '#77806e');
+  const T = 12;
   for (let row = 0, yy = y; yy < y + h; row++, yy += T) {
     for (let col = 0, xx = x; xx < x + w; col++, xx += T) {
       const n = hash(row, col, seed || 3);
-      const fill = n < 0.7 ? '#e0d8c4' : n < 0.9 ? '#d4ccb6' : '#c8bea6';
+      const fill = n < 0.7 ? '#a5ac97' : n < 0.9 ? '#9da48f' : '#939b85';
       const tw = Math.min(T - 1, x + w - xx), th = Math.min(T - 1, y + h - yy);
       if (tw > 0 && th > 0) {
         rect(g, xx, yy, tw, th, fill);
-        rect(g, xx, yy, tw, 1, '#ece6d6');
-        if (n > 0.94 && tw > 4) rect(g, xx + 2, yy + 3, 2, 1, '#8a8478');
+        rect(g, xx, yy, tw, 1, '#b5baa5');
+        if (n > 0.96 && tw > 4) rect(g, xx + 2, yy + 3, 2, 1, '#858d79');
       }
     }
   }
@@ -752,52 +756,100 @@ export function cup(g, x, y, fill) {
   rect(g, x + 6, y + 1, 2, 4, I); rect(g, x + 6, y + 2, 1, 2, fill || P.white);
 }
 
+/** Each guest has a small place setting, drawn on the counter at native
+ * resolution. Keep the centre free for the plate and the arriving food. */
+export function guestSetting(g, cx, y, face, t, still) {
+  const variant = face % 3;
+  const x = cx - 25;
+  // A contact shadow and a porcelain saucer ground the drink on the wood.
+  rect(g, x - 2, y, 11, 2, P.woodLo);
+  rect(g, x - 1, y - 1, 9, 1, P.cream);
+  if (variant === 2) {
+    // Water tumbler: rim, blue water, and a broken vertical reflection.
+    rect(g, x + 1, y - 8, 6, 8, P.ink);
+    rect(g, x + 2, y - 7, 4, 6, P.steelLo);
+    rect(g, x + 2, y - 4, 4, 3, P.steelHi);
+    rect(g, x + 2, y - 7, 1, 2, P.white);
+    rect(g, x + 1, y - 8, 6, 1, P.steelHi);
+  } else {
+    cup(g, x, y - 6, variant ? P.teal : P.cream);
+    rect(g, x + 1, y - 5, 4, 1, P.woodLo); // coffee visible over the lip
+    rect(g, x + 1, y - 3, 1, 2, P.white);
+    const drift = still ? 0 : Math.floor((t + face * 211) / 700) % 2;
+    rect(g, x + 2 + drift, y - 10, 1, 2, P.smoke);
+    rect(g, x + 3 - drift, y - 13, 1, 1, P.smoke);
+  }
+  // Folded linen and a fork, beside (never on top of) the dinner plate.
+  rect(g, cx + 15, y - 2, 9, 4, P.woodLo);
+  rect(g, cx + 15, y - 3, 8, 3, P.cream);
+  rect(g, cx + 16, y - 3, 5, 1, P.white);
+  rect(g, cx + 21, y - 2, 1, 2, P.grey);
+  rect(g, cx + 18, y - 6, 1, 6, P.steelHi);
+  rect(g, cx + 16, y - 6, 1, 2, P.steelHi);
+  rect(g, cx + 20, y - 6, 1, 2, P.steelHi);
+  rect(g, cx + 16, y - 4, 5, 1, P.steelHi);
+}
+
 /** A ladle hanging from a hook: the handle up, the bowl down. */
 export function ladle(g, x, y) {
-  rect(g, x + 2, y, 3, 11, I); rect(g, x + 3, y, 1, 10, P.steelHi);
-  rect(g, x, y + 10, 7, 4, I); rect(g, x + 1, y + 11, 5, 2, P.steelHi); rect(g, x + 2, y + 12, 3, 1, P.steel);
+  stamp(g, [
+    '..###..', '..#s#..', '..#w#..', '..#w#..', '..#s#..',
+    '..#s#..', '..#s#..', '..#s#..', '.#s#...', '.#s#...',
+    '.#####.', '#ssssl#', '#sdddl#', '.#lll#.', '..###..',
+  ], { '#': I, s: P.steelHi, l: P.steel, d: P.steelLo, w: P.woodHi }, x, y);
 }
 
 /** A whisk hanging. */
 export function whisk(g, x, y) {
-  rect(g, x + 2, y, 3, 6, I); rect(g, x + 3, y, 1, 5, P.woodHi);
-  rect(g, x, y + 6, 7, 8, I);
-  rect(g, x + 1, y + 7, 1, 5, P.steelHi); rect(g, x + 5, y + 7, 1, 5, P.steelHi);
-  rect(g, x + 3, y + 6, 1, 7, P.steelHi); rect(g, x + 2, y + 12, 3, 1, P.steelHi);
+  stamp(g, [
+    '..###..', '..#s#..', '..#w#..', '..#w#..', '..#w#..',
+    '..#s#..', '..###..', '.#sss#.', '#s#s#s#', '#s#s#s#',
+    '#s#s#s#', '#s#s#s#', '.#sss#.', '..#s#..', '...#...',
+  ], { '#': I, s: P.steelHi, w: P.woodHi }, x, y);
 }
 
 /** A spatula hanging. */
 export function spatula(g, x, y) {
-  rect(g, x + 2, y, 3, 8, I); rect(g, x + 3, y, 1, 7, P.woodHi);
-  rect(g, x, y + 8, 7, 6, I); rect(g, x + 1, y + 9, 5, 4, P.steelHi);
-  rect(g, x + 2, y + 10, 1, 2, P.steel); rect(g, x + 4, y + 10, 1, 2, P.steel);
+  stamp(g, [
+    '..###..', '..#s#..', '..#w#..', '..#w#..', '..#w#..',
+    '..#s#..', '..#s#..', '.#####.', '#ssssl#', '#s#s#l#',
+    '#s#s#l#', '#s#s#l#', '#ssssl#', '.#lll#.', '..###..',
+  ], { '#': I, s: P.steelHi, l: P.steel, w: P.woodHi }, x, y);
 }
 
-/** A copper pan hanging from the rail by its handle. */
-export function hangingPan(g, x, y) {
-  rect(g, x + 6, y, 3, 5, I); rect(g, x + 7, y, 1, 4, P.copperLo);
-  rect(g, x, y + 5, 15, 8, I); rect(g, x + 1, y + 6, 13, 6, P.copper);
-  rect(g, x + 2, y + 7, 6, 1, P.copperHi); rect(g, x + 11, y + 6, 2, 6, P.copperLo);
-  rect(g, x + 1, y + 11, 13, 1, P.copperLo);
+/** Round cookware seen from the back, with a hanging loop and a stepped rim. */
+export function hangingPan(g, x, y, material = 'copper') {
+  const metals = material === 'iron'
+    ? [P.steelLo, P.steel, P.steelInk]
+    : material === 'steel' ? [P.steel, P.steelHi, P.steelLo]
+      : [P.copper, P.copperHi, P.copperLo];
+  stamp(g, [
+    '......###......', '......#s#......', '......#w#......',
+    '......#w#......', '......#s#......', '.....#####.....',
+    '...##HHHHH##...', '...#HcccccL#...', '..#HccccccLL#..',
+    '..#HcccccccL#..', '..#HcccHcccL#..', '..#ccccccccL#..',
+    '..#LccccccLL#..', '...#LLLLLLL#...', '...##LLLLL##...',
+    '.....#####.....',
+  ], { '#': I, s: P.steelHi, w: P.woodLo, c: metals[0], H: metals[1], L: metals[2] }, x, y);
 }
 
 /** A braid of garlic hanging on a string. */
 export function garlic(g, x, y) {
   rect(g, x + 3, y, 1, 4, P.cream);
-  const bulbs = [[0, 4], [3, 7], [0, 10], [3, 13], [1, 16]];
+  const bulbs = [[0, 3], [3, 6], [0, 9], [3, 12]];
   for (const [dx, dy] of bulbs) {
-    rect(g, x + dx, y + dy, 5, 4, I); rect(g, x + dx + 1, y + dy + 1, 3, 2, '#f0ece0');
-    rect(g, x + dx + 1, y + dy + 1, 1, 1, '#ffffff'); rect(g, x + dx + 3, y + dy + 2, 1, 1, '#c8c0a8');
+    stamp(g, ['..s..', '.###.', '#whs#', '.###.'],
+      { '#': I, w: P.white, h: P.cream, s: P.greyHi }, x + dx, y + dy);
   }
 }
 
 /** A string of dried chillies. */
 export function chillies(g, x, y) {
   rect(g, x + 2, y, 1, 3, P.cream);
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 3; k++) {
     const dx = k % 2 ? 2 : 0;
-    rect(g, x + dx, y + 3 + k * 4, 4, 4, I); rect(g, x + dx + 1, y + 4 + k * 4, 2, 2, '#e02020');
-    rect(g, x + dx + 1, y + 4 + k * 4, 1, 1, '#ff6040');
+    stamp(g, ['.g..', '#hr#', '.rr#', '..r#', '..#.'],
+      { '#': I, g: P.greenLo, h: '#e46f3d', r: '#a73523' }, x + dx, y + 2 + k * 4);
   }
 }
 
@@ -811,35 +863,54 @@ export function loaf(g, x, y) {
 /** A cutting board with vegetables and a knife on it. */
 export function board(g, x, y) {
   rect(g, x, y, 18, 4, I); rect(g, x + 1, y + 1, 16, 2, P.woodHi); rect(g, x + 1, y + 2, 16, 1, P.wood);
-  rect(g, x + 2, y - 3, 4, 4, I); rect(g, x + 3, y - 2, 2, 2, '#d83028');
-  rect(g, x + 7, y - 3, 4, 4, I); rect(g, x + 8, y - 2, 2, 2, '#3a9a3a');
-  rect(g, x + 12, y - 2, 5, 3, I); rect(g, x + 13, y - 1, 3, 1, '#f08020');
+  rect(g, x + 2, y - 2, 5, 3, I); rect(g, x + 3, y - 2, 3, 2, '#b94228');
+  rect(g, x + 4, y - 3, 1, 1, P.greenLo);
+  rect(g, x + 8, y, 2, 1, P.cream); rect(g, x + 10, y - 1, 2, 1, P.cream);
+  // A blade laid on the board, its dark grip kept distinct from the vegetables.
+  rect(g, x + 11, y - 3, 6, 2, I); rect(g, x + 12, y - 3, 4, 1, P.steelHi);
+  rect(g, x + 9, y - 2, 3, 1, P.woodInk);
 }
 
 /** A knife block with three handles showing. */
 export function knifeBlock(g, x, y) {
-  rect(g, x, y, 9, 8, I); rect(g, x + 1, y + 1, 7, 6, P.woodLo); rect(g, x + 1, y + 1, 7, 1, P.wood);
-  for (let k = 0; k < 3; k++) { rect(g, x + 1 + k * 3, y - 3, 2, 4, I); rect(g, x + 1 + k * 3, y - 3, 1, 3, P.woodInk); }
+  rect(g, x + 2, y, 8, 2, I); rect(g, x, y + 2, 11, 6, I);
+  rect(g, x + 2, y + 1, 7, 2, P.woodHi); rect(g, x + 1, y + 3, 7, 4, P.wood);
+  rect(g, x + 8, y + 3, 2, 4, P.woodLo);
+  rect(g, x + 2, y + 5, 4, 1, P.woodHi);
+  for (let k = 0; k < 3; k++) {
+    const top = y - 3 + k % 2;
+    rect(g, x + 2 + k * 3, top, 2, 5 - k % 2, I);
+    rect(g, x + 2 + k * 3, top + 1, 1, 1, P.steelHi);
+  }
 }
 
 /** A sack of flour, tied at the top, slumped. */
 export function sack(g, x, y) {
   rect(g, x + 4, y, 6, 3, I); rect(g, x + 5, y + 1, 4, 1, P.cream);
-  rect(g, x, y + 3, 14, 11, I); rect(g, x + 1, y + 4, 12, 9, '#d8c8a0'); rect(g, x + 10, y + 4, 3, 9, '#b8a880');
-  rect(g, x + 3, y + 7, 6, 3, P.paper); rect(g, x + 4, y + 8, 4, 1, '#3c6cba');
+  rect(g, x + 2, y + 3, 10, 2, I); rect(g, x + 1, y + 5, 12, 8, I);
+  rect(g, x, y + 8, 14, 5, I); rect(g, x + 2, y + 5, 10, 7, '#d8c8a0');
+  rect(g, x + 1, y + 9, 12, 3, '#d8c8a0'); rect(g, x + 10, y + 6, 2, 6, '#b8a880');
+  rect(g, x + 3, y + 6, 6, 5, P.paper);
+  rect(g, x + 5, y + 7, 1, 3, P.wood); rect(g, x + 4, y + 7, 3, 1, P.woodHi);
+  rect(g, x + 1, y + 13, 12, 1, I);
 }
 
 /** A folded towel hanging over a rail. */
 export function towel(g, x, y, color) {
-  rect(g, x, y, 8, 11, I); rect(g, x + 1, y + 1, 6, 9, color || P.white);
-  rect(g, x + 1, y + 3, 6, 1, P.red); rect(g, x + 1, y + 7, 6, 1, P.red);
-  rect(g, x + 6, y + 1, 1, 9, P.greyHi);
+  rect(g, x, y, 8, 10, I); rect(g, x + 1, y + 1, 6, 8, color || P.white);
+  rect(g, x + 1, y + 9, 6, 2, I); rect(g, x + 2, y + 9, 4, 1, P.cream);
+  rect(g, x + 1, y + 2, 6, 1, P.greyHi); rect(g, x + 5, y + 3, 1, 6, P.greyHi);
+  rect(g, x + 1, y + 7, 6, 1, P.red);
 }
 
 /** A bowl of eggs. */
 export function eggs(g, x, y) {
-  rect(g, x, y + 3, 12, 4, I); rect(g, x + 1, y + 4, 10, 2, '#3c6cba');
-  for (const [dx, dy] of [[1, 1], [4, 0], [7, 1]]) { rect(g, x + dx, y + dy, 4, 4, I); rect(g, x + dx + 1, y + dy + 1, 2, 2, '#f4e8d0'); }
+  for (const [dx, dy] of [[1, 1], [4, 0], [7, 1]]) {
+    stamp(g, ['.##.', '#hh#', '#hs#', '.##.'], { '#': I, h: P.cream, s: P.greyHi }, x + dx, y + dy);
+  }
+  rect(g, x, y + 3, 12, 2, I); rect(g, x + 1, y + 3, 10, 1, P.cream);
+  rect(g, x + 1, y + 5, 10, 1, I); rect(g, x + 2, y + 5, 8, 1, P.copper);
+  rect(g, x + 3, y + 6, 6, 1, I);
 }
 
 /** A basket of bread rolls. */
@@ -873,18 +944,27 @@ export function pendant(g, x, y, drop) {
 /* ── the small glyphs ───────────────────────────────────────────────────── */
 
 const STAR = ['..#..', '.###.', '#####', '.###.', '#...#'];
-export function star(g, x, y, lit) {
+const PAPER_STAR = ['...o...', '..ofo..', 'oofffoo', '.offfo.', '..ofo..', '.oo.oo.', '.o...o.'];
+export function star(g, x, y, lit, onPaper = false) {
+  if (onPaper) {
+    // A gold centre and dark outline keep all five points legible on parchment.
+    // Lost stars retain only a muted outline, with the paper showing through.
+    stamp(g, PAPER_STAR, lit ? { o: '#65451f', f: P.amber } : { o: '#958871' }, x, y);
+    if (lit) rect(g, x + 3, y + 2, 1, 1, P.gold);
+    return;
+  }
   stamp(g, STAR, { '#': lit ? P.amber : P.greyLo }, x, y);
   if (lit) rect(g, x + 2, y + 1, 1, 1, P.gold);
 }
 
-/** Five stars in a row, `n` of them lit. 29 wide. There are six of these and
- *  ten rows of them on the screen at once, so they are drawn once each. */
-export function stars(g, x, y, n, total) {
+/** Cached quality rows: larger outlined stars on paper, compact ones on the stove. */
+export function stars(g, x, y, n, total, onPaper = false) {
   const t = total || 5;
   const lit = Math.max(0, Math.min(t, n));
-  blit(g, sprited('stars/' + t + '/' + lit, t * 6 - 1, 5, (s) => {
-    for (let k = 0; k < t; k++) star(s, k * 6, 0, k < lit);
+  const size = onPaper ? ORDER_STAR.size : 5;
+  const advance = onPaper ? ORDER_STAR.advance : 6;
+  blit(g, sprited('stars/' + t + '/' + lit + '/' + onPaper, (t - 1) * advance + size, size, (s) => {
+    for (let k = 0; k < t; k++) star(s, k * advance, 0, k < lit, onPaper);
   }), x, y);
 }
 

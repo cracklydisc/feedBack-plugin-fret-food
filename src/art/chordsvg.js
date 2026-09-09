@@ -153,7 +153,7 @@ export function chordSvg(d, box, o) {
       const r = 1.7;
       parts.push(`<path d="M${x - r} ${y - r}L${x + r} ${y + r}M${x + r} ${y - r}L${x - r} ${y + r}" stroke="${P.redHi}" stroke-width="0.9" stroke-linecap="round"/>`);
     } else if (s.open) {
-      parts.push(`<circle cx="${x}" cy="${y}" r="1.8" fill="none" stroke="${P.cyanHi}" stroke-width="0.9"/>`);
+      parts.push(`<circle cx="${x}" cy="${y}" r="1.8" fill="none" stroke="${P.gold}" stroke-width="0.9"/>`);
     }
   }
 

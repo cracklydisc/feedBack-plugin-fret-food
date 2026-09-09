@@ -10,7 +10,20 @@ node_modules/
 # and the atlas that says where each frame is: somebody who clones this
 # wants the game, not seventy megabytes of takes behind it.
 assets/art/raw/
+assets/art/source/
 tools/art/
 tools/sprites.html
 docs/asset-brief.md
 docs/prompts.md
+
+# Local art studies and UI captures; only the runtime sprite sheets ship.
+docs/cast-*.png
+docs/cast-refresh.md
+docs/chef-pair-review.md
+docs/crowd-refreshed.png
+docs/customer-trio*.png
+docs/customer-trio-review.md
+docs/gameplay-review.md
+docs/sprite-review.md
+docs/ui-review.png
+tools/review-fixture.mjs

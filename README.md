@@ -39,7 +39,9 @@ What makes it hard is the **clock**, and three things follow from it:
 Money is the score. A dish pays its price times your chain, plus a 25% tip if
 it left the pot without a single dirty strum.
 
-![Closing Time: four pots on the counter, a ticket and a fingering on every card, two of them wanting the same chord, the critic at the bar and the level bell ringing a perfect service](docs/service.png)
+![Five long recipes with full upcoming chord names, readable quality stars, animated cooks and refreshed customers](docs/service.png)
+
+*Illustrative five-station scene with eight-step recipes and different urgency levels.*
 
 *Closing Time, four pots. Every card is a ticket and a fingering, every pot a
 clock, two of them want the same B flat, and the bell has just paid a perfect
@@ -165,8 +167,8 @@ already knows — Cadd9 shares three fingers with G, Dsus4 is D with one finger
 more, G/B is the bass stepping from G down to C — and they sit in the first
 two tiers beside the shapes they belong to. B and G#m finish the keys of E and
 A up the neck. And F has two fingerings: the small one at the second tier and
-the whole barre at the fourth, written F on the card like the other and told
-apart by its diagram, which is what a diagram is for. Five dishes are written
+the whole barre at the fourth, written `F BAR` on the card and in the preview, so it can be told apart
+from the partial F before its diagram appears. Five dishes are written
 on them — Suspended Toast, Add-Nine Bruschetta, Suspended Skewers,
 Walking-Bass Focaccia, Full-Barre Bistecca — and the drills draw them like
 any other shape of their tier.
@@ -187,19 +189,43 @@ shape without giving your hand the beat to get there.
 
 ## The screen
 
-Each station shows the order ticket, the recipe as a row of chips with the one
-you owe right now lit, a heat bar with a fixed tick at the line you have to
-clear, the pot, and its flame. The only number on a station is how many seconds
-that pot has left, because "dies in 6" is a decision and "35%" is not. Under
-the pan, on the stove front, the stars and what the dish pays if it goes out
-now — price times multiplier, plus the tip while the pot is clean — in gold,
-which is the one colour money has on this screen.
+Each station shows the order ticket, the current chord and its fingering,
+the next two chords, a heat bar with a fixed readiness tick, the pot and
+its flame. Below three seconds, only the timer gains a red warning background;
+its digits stay visible. Compact parchment orders carry the quality stars.
+Under the pan, a quiet price tag shows the current payout and a `-1` star
+warning if playing now would spoil the step. Actual `-1 STAR` / `COOKED`
+feedback briefly replaces that tag, without moving over the heat bar or pan.
+The unobstructed heat gauge is green when ready and amber below its tick.
 
-A chip too narrow for its chord's whole name — `Cadd9` in a chip cut for `Am`
-— prints the root and takes a **cyan rule** under it: the letter is not the
-whole chord, and the big name and the fingering on the card are. Without that
-mark the preview showed a C where a Cadd9 was coming, which is worse than
-showing nothing: the hand goes to the shape it read.
+The **next two strums** are written directly across the top of the existing
+chalkboard, read left to right. Equal-width open chalk brackets keep the names
+centred without separate panels; gold lettering marks the immediate next chord.
+`+N` has its own space after a chalk divider and counts the steps beyond the two shown. `Cadd9`, `Gsus4` and `Dsus4` remain complete even in eight-step
+orders; repeated chords remain separate steps. A counter below the current
+chord shows progress; the final step says `LAST STEP`. The partial F stays `F`;
+the six-string version says `F BAR`, so the hand can prepare for the barre.
+
+Both line cooks use animations authored at their native 48×30 resolution,
+with independent skillet and stirring gestures. The canvas keeps pixelated
+presentation at fractional window sizes; integer scales give the most even pixels.
+
+The guitarist retains the original 60×104 illustration. Four picking poses
+animate its hand and sleeve over a 300 ms gesture, triggered by input rather
+than looping. Missed and rough chords move the hand too; pause holds the pose
+and reduced motion keeps it still.
+
+The chalkboards use warm charcoal and yellow accents; open-string markers
+are yellow too, while cyan remains for sound feedback. Both cooks stand behind
+the main worktop, with its front edge covering their aprons, wooden prep boards
+and warm work lights. Kitchen tools have distinct native-pixel silhouettes.
+
+All 17 seated customers have four reactive poses, individual place settings,
+subtle breathing and expressions that react to waiting, cooking and service.
+The 18 standing crowd figures and the doorway queue share the refreshed art.
+Background guests form quieter groups, leaving space behind seated faces.
+Quality stars have gold centres, dark outlines and hollow lost-star silhouettes.
+The shipped RGBA sprites are tested for opaque torsos.
 
 On the right of every ticket is the fingering for the chord that ticket owes:
 six strings, four fret spaces, a numbered dot per finger, `o` and `x` over the
@@ -234,7 +260,8 @@ teaches the rule before it tests you on it. In a first service three short
 notices say what just happened the first time it happens: a step cooked, a step
 under the line, one chord feeding two pots. They are never said again.
 
-**`P` pauses.** So does the window losing focus. The hub's Quit button holds the
+**`P` pauses.** So does the window losing focus or its tab becoming hidden.
+The scene freezes too, preserving notes and ingredients in flight until resume. The hub's Quit button holds the
 service and asks; a second click closes it and the takings are recorded, not a
 zero.
 
@@ -304,7 +331,7 @@ served and lost, the slowest chord change of the service and the service
 number. The hub's summary repeats them, with the three slowest changes and the
 `?seed=` that plays the same service again.
 
-![The closing card: the house mark, the takings, served and lost, the slowest change of the service and the service number](docs/service-closed.png)
+![The closing card: the house mark, takings, served and lost customers, best combo and service number](docs/service-closed.png)
 
 ---
 

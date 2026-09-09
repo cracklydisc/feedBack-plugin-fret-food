@@ -31,7 +31,7 @@ const BOOK = {
   'F+': '133211', B: 'x24442', 'G#m': '466444',
 };
 
-test('the whole F is written F, and only the fingering tells it from the small one', () => {
+test('the two F shapes share a harmonic name and keep distinct fingerings', () => {
   assert.equal(label('F+'), 'F');
   assert.equal(label('F'), 'F');
   assert.equal(label('Cadd9'), 'Cadd9', 'a shape with no display name is called by its key');

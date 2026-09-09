@@ -623,7 +623,11 @@ async function start({ container, modifiers, sdk }) {
     // Before the first chord nothing is running, so there is nothing to hold.
     if (game.state.started && !game.state.over) setPause(true);
   }
+  function onVisibility() {
+    if (document.hidden) onBlur();
+  }
   try { document.addEventListener('keydown', onKey); } catch (_) {}
+  try { document.addEventListener('visibilitychange', onVisibility); } catch (_) {}
   try { window.addEventListener('blur', onBlur); } catch (_) {}
 
   const badge = mountBadge(sdk);
@@ -685,6 +689,7 @@ async function start({ container, modifiers, sdk }) {
     try { current.stop(); } catch (_) {}
     try { sfx.destroy(); } catch (_) {}
     try { document.removeEventListener('keydown', onKey); } catch (_) {}
+    try { document.removeEventListener('visibilitychange', onVisibility); } catch (_) {}
     try { window.removeEventListener('blur', onBlur); } catch (_) {}
     const snap = game.snapshot();
     const r = report.finish();

@@ -8,6 +8,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Full upcoming chord names on the existing chalkboards, with two-step previews,
+  a separated continuation count and distinct full-barre F labels.
+- Refreshed pixel art for 17 seated customers, 18 standing figures and two
+  animated line cooks; input-triggered picking poses for the original player.
+- Native-pixel kitchen utensils, cookware details and individual place settings.
+- Compact parchment orders with larger outlined quality stars; local timer
+  urgency, unobstructed heat gauges and stationary stove feedback.
+
 - **Nine shapes for the changes themselves, and a second F.** Cadd9, Gsus4,
   Dsus4, Asus2, Asus4 and G/B — the small movements a hand practises between
   the chords it knows, and the bass step from G to C — join the first two
@@ -28,6 +36,16 @@ All notable changes to this project are documented here. The format follows
     purpose now. `docs/chords.svg` prints the frets under every shape.
 
 ### Changed
+
+- Clearer kitchen silhouettes: copper saucepan, enamel stockpot, deeper
+  skillet and quieter tiles/brickwork. Staff stand behind the main worktop; background
+  patrons are shaded without making them transparent. Existing pixel sprites
+  and the 480×270 canvas remain in use.
+- Customers now use their existing impatient, happy and angry poses while
+  waiting, according to the order's state. Urgency is highlighted around the timer.
+- Pause freezes visual feedback as well as gameplay; hidden tabs also pause
+  the service. Long diagnostic lines wrap inside their panel.
+- No changes to recipe generation, scoring, input recognition or balance.
 
 - **The chord is named from the notes that are ringing, not from the shapes
   the counter wants.** Two sessions with a guitar said the same thing: *suono
