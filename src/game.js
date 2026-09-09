@@ -319,7 +319,18 @@ async function start({ container, modifiers, sdk }) {
   const clock = createClock();
   const sfx = createSfx();
 
-  let label = built.label;
+  /* WHICH INPUT IS LIVE — and it is not called `label`, which is the name of
+   * the imported function that turns a shape key into the name on the card.
+   * It WAS called that, and shadowed the import for the whole of this
+   * function: every `label(chord)` in here threw `label is not a function`.
+   * Three of them, all in code that only runs once something has gone right —
+   * the ear overlay's rows, the loop mode's line and the closing card's
+   * slowest change — so while the recognition was poor none of them was ever
+   * reached and the bug sat there. The first chord this game ever named
+   * cleanly froze the overlay, and the `catch (_) {}` around the redraw meant
+   * it froze SILENTLY, on the frame before the one that would have explained
+   * it. A shadowed import and a swallowed error are not two bugs. */
+  let inputLabel = built.label;
   let ended = false;
   let refused = false;                      // no guitar can be heard here: said once
   let toldKeys = false;
@@ -396,7 +407,7 @@ async function start({ container, modifiers, sdk }) {
      * says what this guitar in this room can afford: a chord that comes back
      * nearly whole earns the strict ear, where the answer is sharpest; one
      * that barely clears the floor keeps the kind one. Once a service. */
-    if (calibrating && ev.chord && label === 'guitar') {
+    if (calibrating && ev.chord && inputLabel === 'guitar') {
       calibrating = false;
       const tier = earFor(ev.quality);
       try { if (current && current.setEar) current.setEar(tier); } catch (_) {}
@@ -426,7 +437,7 @@ async function start({ container, modifiers, sdk }) {
      * started, and this guard stands whether it does or not. */
     if (ev.ready === false && wanted.source === 'detector' && !refused) {
       refused = true;
-      label = 'none';
+      inputLabel = 'none';
       try { built.adapter.stop(); } catch (_) {}
       try {
         scene.say(['NO GUITAR CAN BE HEARD HERE', 'FRET FOOD NEEDS THE FEEDBACK DESKTOP BUILD AND A GUITAR PLUGGED IN',
@@ -491,7 +502,19 @@ async function start({ container, modifiers, sdk }) {
    * the screen are simply never older than the picture they are drawn on. */
   function render() {
     scene.update(game.snapshot());
-    if (diagOn) { try { scene.setDiag(diagLines()); } catch (_) {} }
+    /* The overlay must not stop the service, but it must not fail in silence
+     * either: swallowing the throw is what turned a one-line shadowing bug
+     * into "the plate shows the first strum and then nothing forever". It is
+     * said once, on the plate itself, where somebody looking at a frozen
+     * overlay is already looking. */
+    if (diagOn) {
+      try { scene.setDiag(diagLines()); } catch (e) {
+        if (!diagBroken) {
+          diagBroken = true;
+          try { scene.setDiag(['THE EAR PLATE CANNOT BE DRAWN', String((e && e.message) || e).toUpperCase()]); } catch (_) {}
+        }
+      }
+    }
   }
 
   /* ── the pause ────────────────────────────────────────────────────────
@@ -518,11 +541,12 @@ async function start({ container, modifiers, sdk }) {
    * fresh every frame from the adapter's own stats, so it cannot drift from
    * what the adapter actually did. */
   let diagOn = false;
+  let diagBroken = false;      // said once, and never again every frame
   function diagLines() {
     const s = (current && current.stats) || {};
     const head = [
       'EAR ' + String(s.ear || '?').toUpperCase()
-        + ' - ' + String(s.road || label).toUpperCase()
+        + ' - ' + String(s.road || inputLabel).toUpperCase()
         + (s.why ? ' (' + String(s.why).toUpperCase() + ')' : '')
         /* Four numbers that used to be two, and they are read left to right
          * as a funnel: how many gestures the ear noticed, how many it could
@@ -623,11 +647,12 @@ async function start({ container, modifiers, sdk }) {
   function updateBadge() {
     // The scene prints the key beside each chord when the keyboard is what is
     // talking, so the badge and the hints are decided in the same place.
-    try { scene.setHints(label === 'keyboard'); } catch (_) {}
+    try { scene.setHints(inputLabel === 'keyboard'); } catch (_) {}
     try { scene.setSeed(wanted.seed); } catch (_) {}
-    if (label === 'keyboard') tellKeys();
+    if (inputLabel === 'keyboard') tellKeys();
     if (!badge) return;
-    const text = label === 'guitar' ? 'GUITAR' : label === 'keyboard' ? 'KEYBOARD' : label === 'none' ? 'NO GUITAR' : 'SCRIPT';
+    const text = inputLabel === 'guitar' ? 'GUITAR' : inputLabel === 'keyboard' ? 'KEYBOARD'
+      : inputLabel === 'none' ? 'NO GUITAR' : 'SCRIPT';
     if (badge.textContent !== text) badge.textContent = text;
   }
   updateBadge();
@@ -660,7 +685,7 @@ async function start({ container, modifiers, sdk }) {
      * so a personal best is not beaten by choosing an easier service. And by
      * what played: only the guitar scores, the keyboard and the script are
      * development inputs and report nothing. */
-    const input = label === 'guitar' ? 'guitar' : label === 'keyboard' ? 'keyboard' : 'script';
+    const input = inputLabel === 'guitar' ? 'guitar' : inputLabel === 'keyboard' ? 'keyboard' : 'script';
     const { score, mult } = scoreOf(game.state.cash, { pace, pans, mode, input });
     try {
       sdk.end({
@@ -670,7 +695,7 @@ async function start({ container, modifiers, sdk }) {
         // so a Play Again with cached options reopens the plate on it.
         modifiers: { pace, pans: String(pans), mode: sprintLocked ? 'sprint' : mode },
         meta: {
-          input: label, profile: wanted.profile, seed: wanted.seed, pace, pans, mode, mult, why,
+          input: inputLabel, profile: wanted.profile, seed: wanted.seed, pace, pans, mode, mult, why,
           cash: game.state.cash, level: r.level, served: r.served, ruined: r.ruined,
           cycles: r.cycles, cleanRatio: r.cleanRatio, hash: r.hash,
           comboBest: snap.comboBest, slowest: r.slowest, ear: (current && current.stats && current.stats.ear) || null,
@@ -695,7 +720,7 @@ async function start({ container, modifiers, sdk }) {
       // What the loop has had to swallow. Empty is the answer you want.
       faults: () => (clock.faults ? clock.faults() : []),
       /* What the input is hearing, which is the difference between "it does
-       * not work" and a diagnosis. `label` says which road is live; on the
+       * not work" and a diagnosis. `inputLabel` says which road is live; on the
        * guitar, `onsets` counts strums the level detector saw, `named` the
        * ones a chord was found for, `unknown` the ones where nothing on the
        * counter fitted, `ring` the ones that were the chord the hand already
@@ -707,7 +732,8 @@ async function start({ container, modifiers, sdk }) {
        * the engine gave us: `notes` is the polyphonic detector naming what
        * rang, `shapes` the older per-shape scorer, and `air` is the last set
        * of pitches the notes road heard. */
-      input: () => Object.assign({ label, source: wanted.source, pace }, (current && current.stats) || {}),
+      input: () => Object.assign({ label: inputLabel, source: wanted.source, pace },
+        (current && current.stats) || {}),
       // The options plate: whether it is up, and what it says.
       menu: () => ({ open: menuOpen, choices: options.toJSON(), resolved: options.resolved() }),
       // What the drawing is costing, and how many of the panel's frames it is

@@ -1248,9 +1248,9 @@ export function createScene(container) {
        * across the whole card disappears under it — which is exactly what the
        * first version of this row did. `2 POTS` fits in what is left, and the
        * chord it wants is the big letter directly above. */
-      const label = together + ' POTS';
-      rect(g, x + 3, y + 27, measure(label, 'S') + 4, 7, P.ink);
-      text(g, label, x + 5, y + 28, { font: 'S', color: P.cyanHi });
+      const pots = together + ' POTS';   // not `label`: this file imports one
+      rect(g, x + 3, y + 27, measure(pots, 'S') + 4, 7, P.ink);
+      text(g, pots, x + 5, y + 28, { font: 'S', color: P.cyanHi });
     }
 
     /* The diagram, on the vector layer when there is one, because it is the

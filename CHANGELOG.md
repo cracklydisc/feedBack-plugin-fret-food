@@ -104,6 +104,27 @@ All notable changes to this project are documented here. The format follows
   (`NEAR_SHAPES`, three each), so a chord that is not on any ticket comes
   back as itself. The set is capped at ten shapes a strum: each is a round
   trip to the engine and the next strum is 375 ms away.
+- **The ear overlay froze on the first chord it ever named, and said nothing
+  about it.** A session with three dishes served and a combo of twelve had a
+  plate reading `STRUMS 1 NAMED 0 COOKED 0` and `PLAY SOMETHING`. It was not
+  stale data: `src/game.js` imports `label` from the menu — the function that
+  turns a shape key into the name on a card — and then declared `let label`
+  inside its main function for something else entirely, which input is live.
+  Every `label(chord)` in that function threw `label is not a function`.
+  All three call sites only run once something has gone RIGHT — the overlay's
+  rows need a chord to have been named, the other two need a service to end
+  with a slowest change — so while the recognition was poor none was ever
+  reached and the bug sat there through every session. The first chord the
+  game named cleanly killed the plate, and the `catch (_) {}` around the
+  redraw meant it died on the frame BEFORE the one that would have explained
+  it. A shadowed import and a swallowed error are not two bugs. The local is
+  `inputLabel` now, the redraw says what it could not draw instead of
+  swallowing it, and a test of the source — not of behaviour, because no test
+  of behaviour was going to find this — holds every file to "a name imported
+  into a file is that name for the whole file". It found two more of the same
+  trap, in `hud.js` and `scene.js`, neither broken today and both one line
+  away from it.
+
 - **The ladder is dealt inside a service somebody actually plays.** A session
   played the counter at three pans and never saw the third: "il terzo
   bruciatore in questa configurazione esce fuori molto tardi, ho giocato almeno

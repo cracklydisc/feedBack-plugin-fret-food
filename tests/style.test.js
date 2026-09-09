@@ -14,7 +14,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -60,6 +60,82 @@ function withoutTokens(css) {
  * `kc-gray` keyframe name, and a test that reports those is a test people learn
  * to ignore. */
 const NAMED = /(?<![\w-])(white|black|red|green|blue|yellow|orange|purple|pink|brown|grey|gray|silver|gold|cyan|magenta|beige|ivory|tan|teal|navy|olive|maroon|lime|aqua|fuchsia)(?![\w-])/gi;
+
+/*
+ * ── AND ONE RULE ABOUT THE JAVASCRIPT, for the same reason ──────────────
+ *
+ * `src/game.js` imported `label` from the menu — the function that turns a
+ * shape key into the name printed on a card — and then declared `let label`
+ * inside its main function for something else entirely: which input is live.
+ * Every `label(chord)` in that function threw `label is not a function`.
+ *
+ * It survived a long time because all three call sites only run once
+ * something has gone RIGHT: the ear overlay's rows need a chord to have been
+ * named, and the other two need a service to have finished with a slowest
+ * change. While the recognition was poor none of them was ever reached. The
+ * first chord the game named cleanly froze the overlay, and the `catch` around
+ * the redraw meant it froze in silence.
+ *
+ * No test of behaviour was ever going to find that, so this is a test of the
+ * source: a name imported into a file is that name for the whole file.
+ */
+
+/** Every binding a file imports, however the import is written. */
+function imported(src) {
+  const names = new Set();
+  const re = /import\s+([^;]+?)\s+from\s+['"][^'"]+['"]/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const clause = m[1];
+    // `* as kit` binds `kit`; `a, { b as c }` binds `a` and `c`.
+    const star = /\*\s+as\s+([A-Za-z_$][\w$]*)/.exec(clause);
+    if (star) { names.add(star[1]); continue; }
+    const braces = /\{([^}]*)\}/.exec(clause);
+    const before = clause.replace(/\{[^}]*\}/, '').replace(/,\s*$/, '').trim();
+    if (before) names.add(before.replace(/^,/, '').trim());
+    if (braces) {
+      for (const part of braces[1].split(',')) {
+        const bit = part.trim();
+        if (!bit) continue;
+        const as = /\sas\s+([A-Za-z_$][\w$]*)$/.exec(bit);
+        names.add(as ? as[1] : bit);
+      }
+    }
+  }
+  names.delete('');
+  return names;
+}
+
+test('nothing declares a name the file already imported', () => {
+  const dir = join(here, '..', 'src');
+  const files = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(d, e.name));
+      else if (e.name.endsWith('.js')) files.push(join(d, e.name));
+    }
+  };
+  walk(dir);
+  assert.ok(files.length > 10, 'the walk found the source');
+
+  const shadows = [];
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    const names = imported(src);
+    if (!names.size) continue;
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      if (/^\s*(import|export)\s/.test(line)) return;
+      for (const n of names) {
+        // A declaration of that name: `let n =`, `const n =`, `function n(`.
+        const decl = new RegExp('(?:^|[;{]|\\s)(?:let|const|var)\\s+' + n + '\\s*[=;]'
+          + '|(?:^|\\s)function\\s+' + n + '\\s*\\(');
+        if (decl.test(line)) shadows.push(f.split(/[\\/]/).pop() + ':' + (i + 1) + '  ' + n);
+      }
+    });
+  }
+  assert.deepEqual(shadows, [], 'a name imported into a file is that name for the whole file');
+});
 
 test('no literal colour outside the token block', () => {
   const body = withoutTokens(withoutComments(CSS));

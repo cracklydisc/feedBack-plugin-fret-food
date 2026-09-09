@@ -217,10 +217,10 @@ export function stripLayout(snap, W, geo, opts) {
   const cw = measure(combo, 'M', 2);
   const cx = Math.round(W / 2 - cw / 2);
   items.push({ role: 'combo', s: combo, font: 'M', scale: 2, x: cx, y: y + 1, w: cw, h: 14 });
-  const label = 'COMBO';
+  const caption = 'COMBO';       // not `label`: this file imports one, see style.test.js
   items.push({
-    role: 'comboLabel', s: label, font: 'S', color: P.grey,
-    x: cx - GAP - measure(label, 'S'), y: y + 6, w: measure(label, 'S'), h: 5,
+    role: 'comboLabel', s: caption, font: 'S', color: P.grey,
+    x: cx - GAP - measure(caption, 'S'), y: y + 6, w: measure(caption, 'S'), h: 5,
   });
   const best = 'BEST x' + (snap.comboBest || 0);
   items.push({ role: 'best', s: best, font: 'S', color: P.grey, x: cx + cw + GAP, y: y + 6, w: measure(best, 'S'), h: 5 });
