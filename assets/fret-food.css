@@ -63,43 +63,104 @@
     outline: none;
 }
 
-/* The run summary the hub shows when the service closes. `game.js` hands the
- * hub a definition list and this is the only place its shape is decided: two
- * columns, quiet labels, bright values, the hub's own type. It is the one
- * piece of this game that is HTML in front of a player, and it reads like a
- * receipt on purpose. */
+/* Compact receipt inside the host's narrow results dialog. Details use the
+ * full width, rather than squeezing a table into a definition-list value. */
+.kc-recap {
+    min-width: 0;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.4;
+    color: rgb(var(--kc-text));
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
 .kc-summary {
     display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 5px 16px;
-    margin: 14px 0 0;
+    grid-template-columns: minmax(70px, 28%) minmax(0, 1fr);
+    gap: 5px 12px;
+    margin: 8px 0;
     text-align: left;
     font-size: 13px;
     line-height: 1.4;
 }
-
 .kc-summary dt {
-    color: rgb(var(--kc-text) / 0.55);
+    color: rgb(var(--kc-text) / 0.65);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     font-size: 10px;
-    align-self: center;
+    align-self: start;
+    padding-top: 2px;
 }
-
 .kc-summary dd {
+    min-width: 0;
     margin: 0;
     color: rgb(var(--kc-text));
-    font-variant-numeric: tabular-nums;
 }
-
-.kc-summary dd b {
+.kc-summary dd b, .kc-next strong {
     color: rgb(var(--kc-amber));
     font-weight: 600;
 }
-
-.kc-summary dd small {
-    color: rgb(var(--kc-text) / 0.6);
+.kc-recap small, .kc-recap .kc-muted {
+    color: rgb(var(--kc-text) / 0.65);
     font-size: 11px;
+}
+.kc-recap small {
+    display: block;
+    margin-top: 3px;
+}
+.kc-next {
+    margin: 12px 0;
+    padding-left: 10px;
+    border-left: 2px solid rgb(var(--kc-amber));
+}
+.kc-next strong {
+    display: block;
+    margin-bottom: 3px;
+}
+.kc-details {
+    border-top: 1px solid rgb(var(--kc-text) / 0.18);
+    padding: 9px 0;
+}
+.kc-details > summary {
+    cursor: pointer;
+    color: rgb(var(--kc-amber));
+    font-weight: 600;
+}
+.kc-details > summary:focus-visible {
+    outline: 2px solid rgb(var(--kc-amber));
+    outline-offset: 3px;
+}
+.kc-details p {
+    margin: 10px 0;
+}
+.kc-details table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+}
+.kc-details th, .kc-details td {
+    padding: 5px 4px;
+    text-align: right;
+    vertical-align: top;
+    font-weight: 400;
+}
+.kc-details th:first-child {
+    text-align: left;
+    width: 42%;
+}
+.kc-details thead th {
+    color: rgb(var(--kc-text) / 0.65);
+    font-size: 11px;
+}
+.kc-details .kc-change-note td {
+    text-align: left;
+    padding-top: 0;
+    padding-bottom: 8px;
+    font-size: 11px;
+    color: rgb(var(--kc-text) / 0.65);
+    border-bottom: 1px solid rgb(var(--kc-text) / 0.12);
 }
 
 /* The settings page: the kit draws the controls, and this is only the room

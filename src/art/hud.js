@@ -123,7 +123,7 @@ export function barLayout(snap, W, geo, levelMs) {
   const y = geo.BAR_Y + 1;
   const h = geo.BAR_H - 2;
   const span = levelMs || 60000;
-  const level = 'LV ' + snap.level + ' - ' + String(snap.levelName || 'SERVICE').toUpperCase();
+  const level = snap.drill ? 'PAIR PRACTICE' : 'LV ' + snap.level + ' - ' + String(snap.levelName || 'SERVICE').toUpperCase();
 
   const specs = [
     [[{ s: level, font: 'M', color: P.amber }]],
@@ -136,7 +136,8 @@ export function barLayout(snap, W, geo, levelMs) {
       /* A sprint counts DOWN, and that is the row it uses: the bell of the
        * next level matters less than the bell of the end, and it turns red
        * in the last half minute. */
-      snap.timeLeft !== null && snap.timeLeft !== undefined
+      snap.drill ? [{ s: 'UNTIMED', font: 'S', color: P.greyHi }]
+        : snap.timeLeft !== null && snap.timeLeft !== undefined
         ? [{ s: 'LEFT ' + fmtClock(snap.timeLeft), font: 'S', color: snap.timeLeft < 30000 ? P.redHi : P.amber }]
         : [{ s: 'NEXT ' + fmtClock(snap.nextLevelIn === undefined ? span - (snap.t % span) : snap.nextLevelIn), font: 'S', color: P.amber }],
     ],
@@ -295,7 +296,7 @@ export function chordBoxes(snap, geo) {
   const out = [];
   for (let i = 0; i < geo.SLOTS; i++) {
     const st = (snap.stations || [])[i];
-    if (!st || !st.dish || !st.wants) { out.push(null); continue; }
+    if (!st || !st.dish || !st.wants || st.diagramVisible === false) { out.push(null); continue; }
     const x = i * geo.SLOT_W + 2;
     out.push({ i, chord: st.wants, x: x + 40, y: geo.CARD_Y + 12, w: 38, h: 36 });
   }

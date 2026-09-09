@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Explicit Guided/Memory assistance chosen before play, with per-target diagram
+  reveal by click or H. Memory records are local and separate from the guided
+  hub leaderboard, whose API does not partition by assistance.
+- Short pair drills with six changes per direction on one untimed pan.
+- Learning reports with directional medians, sample counts, first attempts,
+  hint/error exclusions, same-context session comparisons and a five-observation
+  minimum for recommendations. Initial waits and interruptions are excluded.
+- Short first encounters with new shapes in Practice, using the existing tier
+  schedule and delaying competing orders until the introduction finishes.
+- Compact end-of-run recap with expandable learning and run details, and
+  full-width directional tables suited to the host's narrow results dialog.
+
 - Full upcoming chord names on the existing chalkboards, with two-step previews,
   a separated continuation count and distinct full-barre F labels.
 - Refreshed pixel art for 17 seated customers, 18 standing figures and two

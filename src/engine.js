@@ -23,6 +23,7 @@
  */
 
 import { dist, changes, shapesAt, NAMES, FACES } from './menu.js';
+import { pairRecipe, introductionRecipe } from './drill.js';
 import { voice } from './invent.js';
 
 export const RULES = {
@@ -366,6 +367,7 @@ export function createGame(opts) {
   const levels = o.levels || [];
   const rand = rng(o.seed || 1);
   const listeners = new Map();
+  const familiar = new Set();
 
   const S = {
     t: 0,                  // game time, ms
@@ -475,13 +477,14 @@ export function createGame(opts) {
   function setRules(over) {
     if (S.started) return false;
     const wasLoop = !!R.LOOP;
+    const wasLearning = !!R.LEARNING;
     const wasTarget = R.LOOP_TARGET;
     Object.assign(R, over || {});
     /* Dealt again only when the deal would differ: the first dish depends on
-     * the LOOP and its target and on nothing else that can be chosen here, so
+     * LOOP, its target and the learning path, so
      * a pace or a cap on the counter leaves the ticket the player is reading
      * exactly where it is. */
-    if (!!R.LOOP !== wasLoop || R.LOOP_TARGET !== wasTarget) redeal();
+    if (!!R.LOOP !== wasLoop || !!R.LEARNING !== wasLearning || R.LOOP_TARGET !== wasTarget) redeal();
     return true;
   }
 
@@ -563,9 +566,7 @@ export function createGame(opts) {
      * their last report said was slowest. */
     if (R.LOOP) {
       if (!S.loopDish) {
-        const want = R.LOOP_TARGET;
-        const has = (m) => want && m.steps.some((c, i) => i > 0 && m.steps[i - 1] === want.from && c === want.to);
-        S.loopDish = (want && menu.find(has)) || pickDishFresh(forStation);
+        S.loopDish = pairRecipe(R.LOOP_TARGET);
       }
       return S.loopDish;
     }
@@ -699,6 +700,8 @@ export function createGame(opts) {
   }
 
   function seat(st) {
+    // While a new shape is being introduced, do not add another order to read.
+    if (R.LEARNING && S.stations.some(s => s !== st && s.order?.lessonChord)) return;
     const spec = levelSpec(S.level);
     st.fed = false;              // a new ticket has not been answered yet
     const tier = shapesAt(spec, S.level);
@@ -712,6 +715,12 @@ export function createGame(opts) {
     /* Dealt in a key of its own: see `voice`. A LOOP service keeps the one
      * recipe it drills; a critic's dish is voiced like any other. */
     if (!R.LOOP) dish = voice(dish, tier, rand);
+    if (R.LEARNING && !R.LOOP) {
+      const intro = introductionRecipe(dish, familiar);
+      // Finish the current round trip before introducing a new fingering.
+      if (intro.lessonChord && S.stations.some(s => s !== st && s.order)) return;
+      dish = intro;
+    }
     fillQueue();
     st.who = critic ? { name: 'THE CRITIC', face: R.CRITIC_FACE, critic: true } : S.queue.shift();
     fillQueue();
@@ -760,6 +769,7 @@ export function createGame(opts) {
       S.tipRun = 0;
     }
     clearStation(st, true);
+    if (R.LOOP) end('drill');
   }
 
   function ruin(st) {
@@ -922,6 +932,7 @@ export function createGame(opts) {
     }
     for (const st of cooked) {
       st.step++;
+      if (R.LEARNING && st.order.lessonChord && st.step === st.order.steps.length) familiar.add(st.order.lessonChord);
       if (st.step >= st.order.steps.length) serve(st);
       else emit('step', { station: st.i, step: st.step, next: wants(st), dish: st.order });
     }
@@ -940,6 +951,13 @@ export function createGame(opts) {
      * passes — the bench schedules its strums on it — but `open()` re-bases
      * every schedule on the moment the first chord arrives. */
     if (!S.started) {
+      for (const st of S.stations) if (!st.order && S.t >= st.seatAt) seat(st);
+      return;
+    }
+
+    // Isolated pair work has no cooling or management pressure. Input quality,
+    // repeats and the accepted-change events still use the normal engine.
+    if (R.LOOP) {
       for (const st of S.stations) if (!st.order && S.t >= st.seatAt) seat(st);
       return;
     }
@@ -1003,7 +1021,7 @@ export function createGame(opts) {
      * frame as the banner, the new dishes and the burner step, and a player
      * who looked away for a second came back to a different game. */
     const spec = levelSpec(S.level);
-    if (S.running && S.stations.length < (spec.stations || 3) && S.t >= S.nextPlaceAt) {
+    if (S.running && !(R.LEARNING && S.stations.some(s => s.order?.lessonChord)) && S.stations.length < (spec.stations || 3) && S.t >= S.nextPlaceAt) {
       addStation();
       S.nextPlaceAt = S.t + R.OPEN_MS;
       emit('place', { station: S.stations.length - 1, stations: S.stations.length });
@@ -1060,6 +1078,8 @@ export function createGame(opts) {
       const silent = game.silent();
       const stations = S.stations.map((st) => ({
         i: st.i,
+        untimed: !!R.LOOP,
+        lessonChord: st.order?.lessonChord || null,
         dish: st.order ? st.order.dish : null,
         id: st.order ? st.order.id : null,
         name: st.who ? st.who.name : null,
@@ -1108,6 +1128,7 @@ export function createGame(opts) {
          * `t` keeps counting from the mount, which is the bench's time and
          * not the player's. */
         started: S.started,
+        drill: !!R.LOOP,
         clock: S.started ? S.t - S.openedAt : 0,
         nextLevelIn: S.started ? Math.max(0, S.nextLevelAt - S.t) : R.LEVEL_MS,
         /* How many clean dishes in a row are still needed to win a lost

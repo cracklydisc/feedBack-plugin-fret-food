@@ -286,9 +286,9 @@ three times for it. Losing them is a strike like any other. They start visiting
 once the hub has counted 300 dB across its games; the sprint opens at 1000 and
 the signature menu, nine invented dishes a tier instead of six, at 2500.
 
-![The options plate over the dining room: pace, burners and mode, a sentence under each, the multiplier they add up to, and the first ticket waiting below](docs/options-plate.png)
+![The options plate over the dining room: pace, burners, mode and Guided/Memory assistance, with the first ticket waiting below](docs/options-plate.png)
 
-**The options plate.** The pace, the burners and the mode are chosen in the
+**The options plate.** Pace, burners, mode and assistance are chosen in the
 game, on a plate over the dining room, while the first customer already sits
 with their ticket up. Every value has a sentence under it that says what it
 does to the kitchen and what it does to the score, the plate adds the
@@ -300,12 +300,34 @@ it. The hub's own picker asks nothing any more — the manifest declares no
 modifiers — and since the hub reads the manifest at startup, a host that was
 already running shows the old rows until it restarts.
 
-**Modes.** The plate's third row: *practice* never closes and writes the time
-of every change over the card it cooked, green in time and red late; *loop* is
-one dish on one pot for ever, aimed at the change your last report said was
-slowest; *sprint* is three minutes from the first chord. Neither practice nor
-the loop is scored. Dishes are dealt in a key of their own, so a service does
-not open on the same chord twice.
+**Modes.** *Practice* has no strike limit and introduces a new shape in a
+short recipe using an already encountered anchor. Other orders wait until that
+introduction finishes; subsequent recipes and extra burners still follow the
+existing tier schedule. Introduction failures and abandoned exercises are
+reported separately. This is an introduction within the current practice
+session, not a claim that a shape has been mastered.
+
+*Loop* is a short, isolated pair exercise: for C→F it deals C F C F…C, with
+six measured changes in each direction after the starting chord. Only one
+pan is active, it does not cool, and the exercise ends after twelve changes.
+The pair comes from comparable recent observations, with at least five eligible
+samples. Without enough data the explicitly shown starter pair is C→G.
+A service result can suggest a pair to investigate, but its samples are never
+pooled with isolated drill timings. *Sprint* remains three minutes from the
+first chord. Practice and loop are not scored on the hub.
+
+**Assistance.** The fourth menu row chooses **Guided** (fingering always
+visible) or **Memory** (chord names remain visible, fingering starts hidden).
+Click an individual board to reveal that target, or press `H` for all current
+targets. A revealed diagram stays until that target advances. There is no
+automatic reveal or change of assistance after the service starts.
+
+The current hub has one global leaderboard per game, without assistance
+partitions. Guided runs retain the existing hub score. Memory keeps arcade
+cash and combo, but reports zero to that shared leaderboard and maintains a
+separate local record. Local records are partitioned by mode, assistance,
+input, ear setting, profile, pace and counter size. Practice and loop store
+learning results without a cash record.
 
 **The score is the takings scaled by what was chosen** — relaxed 0.75, rush
 1.25, one to five burners 0.5 to 1.0 — so a personal best is not beaten by
@@ -326,10 +348,21 @@ long as it takes, and a strum that still fits it best is the hand still there,
 not a new chord; only a chord that beats it is a change, and no change is
 believed a quarter of a second after the last strum.
 
-**When the service closes** the card stays up long enough to read: the takings,
-served and lost, the slowest chord change of the service and the service
-number. The hub's summary repeats them, with the three slowest changes and the
-`?seed=` that plays the same service again.
+**When the service closes** the card shows an eligible median change and its
+sample count, or says more observations are needed. The detailed summary keeps
+service decision time, single-pot practice and isolated pair drills separate.
+It reports each direction's median, eligible/total observations, clean
+repetitions, attempts preceded by an error and requested hints. Initial waits,
+customer turnover and interruptions are excluded from directional timing;
+retries and revealed targets are counted but excluded from the timing median.
+Correct first attempts and help requests are also counted per target.
+
+A comparison with the previous session uses matching chords and the same
+context. It shows observed first attempts, not a mastery score. Pair
+recommendations need five eligible observations and use the median, never a
+single slow attempt or the mean. The bounded local history keeps 24 sessions
+and up to 100 recent timing samples per direction per session. Old mean-only
+reports do not feed recommendations. Use `?seed=` to repeat the same service.
 
 ![The closing card: the house mark, takings, served and lost customers, best combo and service number](docs/service-closed.png)
 

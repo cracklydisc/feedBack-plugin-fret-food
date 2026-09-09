@@ -793,6 +793,23 @@ test('urgent clocks retain every digit in both pulse phases and reduced motion',
   }
 });
 
+test('memory placeholders and thirteen-step pair drills fit with long chord names and keyboard hints', async () => {
+  const steps = Array.from({ length: 13 }, (_, i) => i % 2 ? 'Cadd9' : 'F+');
+  for (const w of [600, 960]) {
+    const stations = Array.from({ length: GEO.SLOTS }, (_, i) => worstStation(i, {
+      steps, step: 0, wants: steps[0], untimed: true, diagramVisible: i % 2 === 0,
+    }));
+    const snap = worstSnapshot({ assistance: 'memory', stations });
+    const { runs } = await drawn(snap, { w, hints: true });
+    inScreen(runs); inCards(onPlate(runs)); noPileUp(onPlate(runs));
+    assert.equal(chordBoxes(snap, GEO).filter(Boolean).length, 3);
+    const recipe = recipeLayout(stations[0], 0, GEO);
+    assert.equal(recipe.hidden, 10);
+    assert.ok(measure('+10', 'S') <= recipe.more.w);
+    assert.ok(recipe.cells[1].x + recipe.cells[1].w < recipe.more.dividerX);
+  }
+});
+
 test('pausing holds the actual scene and preserves in-flight feedback', async (t) => {
   let time = 1000;
   t.mock.method(performance, 'now', () => time);

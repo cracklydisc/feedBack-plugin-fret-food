@@ -1,3 +1,5 @@
+import { createLearning } from './learning.js';
+
 /*
  * ─────────────────────────────────────────────────────────────────────────
  * THE MEASUREMENTS, and why a service has to be signable.
@@ -135,6 +137,7 @@ export function createReport(game, opts) {
   const o = opts || {};
   const R = game.rules;
   const S = game.state;
+  const learning = createLearning(game, o);
 
   const lines = [];
   const gaps = {};
@@ -167,35 +170,16 @@ export function createReport(game, opts) {
   const NAMES = ['seat', 'strum', 'miss', 'open', 'cycle', 'step', 'serve', 'ruin', 'redeem', 'perfect', 'level', 'chainLost', 'over'];
   for (const n of NAMES) game.on(n, (e) => line(n, e));
 
-  /* THE CHANGES, timed. This is the one number a chord-change drill owes its
-   * player and the report did not have: from the last chord that cooked
-   * something to this one, how long did the hand take, pair by pair. It is the
-   * round trip and not the bare change — the time includes reading the next
-   * card — but that is the time the player actually lived, and the pair that
-   * comes out slowest is the pair to practise. */
-  const changes = {};
-  let lastHit = null;
-
   game.on('strum', (e) => {
     bump(perChord, e.chord);
     hitsAt[level] = (hitsAt[level] || 0) + 1;
     if (lastStrumAt !== null) bump(gaps, bucket(GAPS, S.t - lastStrumAt));
     lastStrumAt = S.t;
-    if (lastHit && lastHit.chord !== e.chord) {
-      const k = lastHit.chord + '-' + e.chord;
-      const c = changes[k] || (changes[k] = { from: lastHit.chord, to: e.chord, n: 0, ms: 0 });
-      c.n++;
-      c.ms += S.t - lastHit.t;
-    }
-    lastHit = { chord: e.chord, t: S.t };
   });
-
-  /** The `n` slowest changes, by mean time, slowest first. */
   function slowest(n) {
-    return Object.values(changes)
-      .map((c) => ({ from: c.from, to: c.to, n: c.n, ms: Math.round(c.ms / c.n) }))
-      .sort((a, b) => b.ms - a.ms)
-      .slice(0, n || 3);
+    return learning.finish().pairs.filter(p => p.eligible)
+      .sort((a, b) => b.medianMs - a.medianMs).slice(0, n || 3)
+      .map(p => ({ from: p.from, to: p.to, n: p.n, ms: p.medianMs, medianMs: p.medianMs }));
   }
   game.on('cycle', (e) => { stepsAt[level] = (stepsAt[level] || 0) + e.stations.length; });
   game.on('serve', (e) => { if (e.tip) tips++; });
@@ -246,9 +230,9 @@ export function createReport(game, opts) {
   }
 
   return {
-    sample,
+    sample, learning,
     /** The report. It can be called more than once: it consumes nothing. */
-    finish() {
+    finish(options = {}) {
       const shots = S.hits + S.misses;
       return {
         seed: o.seed === undefined ? null : o.seed,
@@ -288,6 +272,7 @@ export function createReport(game, opts) {
         missRatio: shots ? S.misses / shots : 0,
         hitsPerStep: perStep(),
         slowest: slowest(3),
+        learning: learning.finish(options),
         gaps,
         deaths,
         perChord,

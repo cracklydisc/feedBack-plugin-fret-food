@@ -25,10 +25,10 @@ const store = () => {
 
 test('a choice comes from the address, then from last time, then from the defaults', () => {
   assert.deepEqual(createOptions({}).toJSON(), DEFAULTS);
-  const saved = createOptions({ saved: { pace: 'relaxed', pans: 2, mode: 'practice' } });
-  assert.deepEqual(saved.toJSON(), { pace: 'relaxed', pans: 2, mode: 'practice' });
+  const saved = createOptions({ saved: { pace: 'relaxed', pans: 2, mode: 'practice', assistance: 'guided' } });
+  assert.deepEqual(saved.toJSON(), { pace: 'relaxed', pans: 2, mode: 'practice', assistance: 'guided' });
   const pinned = createOptions({ saved: { pace: 'relaxed', pans: 2 }, pinned: { pace: 'rush', pans: '4' } });
-  assert.deepEqual(pinned.toJSON(), { pace: 'rush', pans: 4, mode: 'service' }, 'the address wins and its strings become numbers');
+  assert.deepEqual(pinned.toJSON(), { pace: 'rush', pans: 4, mode: 'service', assistance: 'guided' }, 'the address wins and its strings become numbers');
   const junk = createOptions({ saved: { pace: 'lazy', pans: 9, mode: 7 }, pinned: { mode: 'nonsense' } });
   assert.deepEqual(junk.toJSON(), DEFAULTS, 'nothing unknown is kept, nothing throws');
 });
@@ -36,7 +36,7 @@ test('a choice comes from the address, then from last time, then from the defaul
 test('arrows walk the rows and the values, and wrap at both ends', () => {
   const o = createOptions({});
   assert.equal(o.state.row, 0);
-  assert.equal(o.move(-1), 'mode', 'up from the first row is the last');
+  assert.equal(o.move(-1), 'assistance', 'up from the first row is the last');
   assert.equal(o.move(1), 'pace');
   o.move(1);                                   // burners
   assert.equal(o.turn(1), 1, 'right from 5 burners wraps to 1');
@@ -146,7 +146,7 @@ test('nothing on the plate touches anything else, and nothing leaves it', () => 
   // The plate itself sits between the bar and the strip: the strip's own line
   // — PLAY C TO OPEN THE KITCHEN — and the first ticket stay in view.
   assert.ok(L.plate.y >= GEO.BAR_Y + GEO.BAR_H, 'the plate covers the bar');
-  assert.ok(L.plate.y + L.plate.h <= GEO.STRIP_Y, 'the plate covers the strip');
+  assert.ok(L.plate.y + L.plate.h <= GEO.KITCHEN_Y, 'the plate covers the kitchen');
   assert.ok(L.plate.x >= 0 && L.plate.x + L.plate.w <= GEO.W);
 });
 
@@ -167,10 +167,10 @@ test('a click lands on a chip or on START, and a click on the wood on nothing', 
 test('the choices survive a service, and a broken store does not', () => {
   const s = store();
   assert.equal(loadChoices(s), null);
-  const o = createOptions({ saved: { pace: 'rush', pans: 3, mode: 'loop' } });
+  const o = createOptions({ saved: { pace: 'rush', pans: 3, mode: 'loop', assistance: 'guided' } });
   assert.ok(saveChoices(s, o.toJSON()));
-  assert.deepEqual(loadChoices(s), { pace: 'rush', pans: 3, mode: 'loop' });
-  assert.deepEqual(createOptions({ saved: loadChoices(s) }).toJSON(), { pace: 'rush', pans: 3, mode: 'loop' });
+  assert.deepEqual(loadChoices(s), { pace: 'rush', pans: 3, mode: 'loop', assistance: 'guided' });
+  assert.deepEqual(createOptions({ saved: loadChoices(s) }).toJSON(), { pace: 'rush', pans: 3, mode: 'loop', assistance: 'guided' });
   s.setItem(CHOICES_KEY, '{not json');
   assert.equal(loadChoices(s), null, 'a broken store is an empty one');
   const angry = { getItem() { throw new Error('private'); }, setItem() { throw new Error('private'); } };

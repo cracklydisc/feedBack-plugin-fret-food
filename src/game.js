@@ -58,6 +58,9 @@ import { createDetectorAdapter } from './input/detector.js';
 import { createEngineAdapter, audioBridge, earFor } from './input/engine.js';
 import { botAdapter } from './bot.js';
 import { createReport } from './report.js';
+import { loadLearning, saveLearning, previousRecall, recommendPair, chooseLoopTarget, DEFAULT_PAIR } from './learning.js';
+import { learningSummary } from './learning-summary.js';
+import { previewName } from './art/recipe.js';
 import { createScene } from './scene.js';
 import { createSfx } from './sfx.js';
 import { isTaken } from './kit/shortcuts.js';
@@ -181,10 +184,10 @@ function rulesFor(ch, unlocked, slow) {
   return Object.assign(
     {
       COOL: RULES.COOL, GROW_PER_S: RULES.GROW_PER_S, MAX_STATIONS: ch.pans,
-      CRITIC: unlocked.has('critic'), STRIKES: RULES.STRIKES, LOOP: false, LOOP_TARGET: null, TIME_LIMIT_MS: 0,
+      CRITIC: unlocked.has('critic'), STRIKES: RULES.STRIKES, LOOP: false, LOOP_TARGET: null, TIME_LIMIT_MS: 0, LEARNING: false,
     },
     PACES[ch.pace] || {},
-    ch.mode === 'practice' ? { STRIKES: 9999 } : {},
+    ch.mode === 'practice' ? { STRIKES: 9999, LEARNING: true, CRITIC: false } : {},
     ch.mode === 'loop' ? { LOOP: true, STRIKES: 9999, MAX_STATIONS: 1, LOOP_TARGET: slow ? { from: slow.from, to: slow.to } : null } : {},
     ch.mode === 'sprint' ? { TIME_LIMIT_MS: SPRINT_MS } : {});
 }
@@ -208,11 +211,6 @@ async function fetchUnlocks(ms) {
   } catch (_) {
     return new Set();
   }
-}
-
-/** The last service's report, for the loop to aim at its slowest change. */
-function lastReport() {
-  try { return JSON.parse(localStorage.getItem('fretfood.lastReport') || 'null'); } catch (_) { return null; }
 }
 
 function rng(seed) {
@@ -285,8 +283,8 @@ async function start({ container, modifiers, sdk }) {
    * the critic visits, the sprint opens and the menu grows with the dB the
    * hub keeps across its games. */
   const unlocked = await fetchUnlocks(UNLOCKS_WAIT_MS);
-  const last = lastReport();
-  const slow = last && Array.isArray(last.slowest) && last.slowest[0] ? last.slowest[0] : null;
+  const history = loadLearning();
+  let slow = null;
   /* The choice: the address first, then whatever the hub still hands over,
    * then last time's, then the defaults. It is only the plate's opening
    * position — the plate itself is what decides. */
@@ -315,7 +313,7 @@ async function start({ container, modifiers, sdk }) {
    * say, and past that the extra cards are variations of the same lesson. */
   const menu = inventMenu(MENU, wanted.seed, unlocked.has('signature') ? 14 : 10);
   const game = createGame({ menu, levels: LEVELS, seed: wanted.seed, rules: rulesFor(ch, unlocked, slow) });
-  const report = createReport(game, { seed: wanted.seed, profile: wanted.profile, input: wanted.source });
+  const report = createReport(game, { ...ch, seed: wanted.seed, profile: wanted.profile, input: wanted.source });
   const scene = createScene(container);
   const port = createPort(wanted.source);
   /* The ear the guitar is heard with. AUTO starts in the MIDDLE — where the
@@ -341,6 +339,15 @@ async function start({ container, modifiers, sdk }) {
    * it froze SILENTLY, on the frame before the one that would have explained
    * it. A shadowed import and a swallowed error are not two bugs. */
   let inputLabel = built.label;
+  const inputKind = () => inputLabel === 'guitar' ? 'guitar' : inputLabel === 'keyboard' ? 'keyboard' : 'script';
+  const learningOptions = () => ({ ...ch, input: inputKind(), ear: wanted.ear, profile: wanted.profile });
+  function configureLearning() {
+    report.learning.setContext(learningOptions());
+    slow = chooseLoopTarget(history, learningOptions());
+    options.setTarget(slow || DEFAULT_PAIR);
+  }
+  configureLearning();
+  game.setRules(rulesFor(ch, unlocked, slow));
   let ended = false;
   let refused = false;                      // no guitar can be heard here: said once
   let toldKeys = false;
@@ -367,6 +374,7 @@ async function start({ container, modifiers, sdk }) {
     ch = options.resolved();
     pace = ch.pace; pans = ch.pans; mode = ch.mode;
     sprintLocked = ch.locked === 'sprint';
+    configureLearning();
     game.setRules(rulesFor(ch, unlocked, slow));
     try { scene.setTimes(mode === 'practice'); } catch (_) {}
     showMenu();
@@ -386,14 +394,18 @@ async function start({ container, modifiers, sdk }) {
     } else if (mode === 'practice') {
       scene.say(['PRACTICE', 'NO STRIKES - THE TIME OF EVERY CHANGE IS WRITTEN OVER ITS CARD', 'NOTHING IS SCORED'], 5000);
     } else if (mode === 'loop') {
-      scene.say(['ONE DISH, ON A LOOP', slow ? 'WORKING ON ' + label(slow.from) + '-' + label(slow.to) + ', YOUR SLOWEST CHANGE LAST TIME' : 'THE SAME RECIPE EVERY TIME, ON ONE POT', 'NO STRIKES, NOTHING SCORED'], 5000);
+      const pair = slow || DEFAULT_PAIR;
+      scene.say(['ONE PAIR, BOTH DIRECTIONS', 'WORKING ON ' + previewName(pair.from) + '-' + previewName(pair.to), 'SIX CHANGES EACH WAY - NO COOLING - NOT SCORED'], 5000);
     } else if (mode === 'sprint') {
       scene.say(['SPRINT', 'THREE MINUTES FROM THE FIRST CHORD', 'THE TAKINGS ARE THE SCORE'], 5000);
     }
   }
   showMenu();
   scene.onPointer((gx, gy) => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      if (!paused && gy >= GEO.CARD_Y && gy < GEO.CARD_Y + GEO.CARD_H) report.learning.reveal(Math.floor(gx / GEO.SLOT_W));
+      return;
+    }
     const hit = menuHit(menuLayout(options, GEO), gx, gy);
     if (!hit) return;
     if (hit.kind === 'start') { closeMenu(); return; }
@@ -494,7 +506,7 @@ async function start({ container, modifiers, sdk }) {
       const slow = r.slowest && r.slowest[0];
       scene.setClosing({
         seed: wanted.seed,
-        note: slow ? 'SLOWEST CHANGE ' + label(slow.from) + '-' + label(slow.to) + ' ' + (slow.ms / 1000).toFixed(1) + 'S' : null,
+        note: slow ? (mode === 'loop' ? 'PAIR MEDIAN ' : 'CHANGE MEDIAN ') + previewName(slow.from) + '-' + previewName(slow.to) + ' ' + (slow.ms / 1000).toFixed(1) + 'S N=' + slow.n : 'MORE OBSERVATIONS NEEDED FOR A PAIR RECOMMENDATION',
       });
     } catch (_) { /* the card can do without the line */ }
     overTimer = setTimeout(() => finish('over'), OVER_HOLD_MS);
@@ -511,7 +523,7 @@ async function start({ container, modifiers, sdk }) {
    * costs a fraction of the frame that is about to draw it, so the numbers on
    * the screen are simply never older than the picture they are drawn on. */
   function render() {
-    scene.update(game.snapshot());
+    scene.update(report.learning.snapshot(game.snapshot()));
     /* The overlay must not stop the service, but it must not fail in silence
      * either: swallowing the throw is what turned a one-line shadowing bug
      * into "the plate shows the first strum and then nothing forever". It is
@@ -538,6 +550,7 @@ async function start({ container, modifiers, sdk }) {
   function setPause(on, why) {
     if (ended || game.state.over) return;
     paused = !!on;
+    if (paused) report.learning.breakTiming();
     if (!paused) quitArmed = false;
     try {
       scene.setPaused(paused
@@ -606,7 +619,10 @@ async function start({ container, modifiers, sdk }) {
       if (raw === 'Enter') { stop(); closeMenu(); return; }
       if (k === PAUSE_KEY) return;
     }
-    if (k === PAUSE_KEY) {
+    if (k === 'h' && !menuOpen && !paused) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      for (const st of game.state.stations) report.learning.reveal(st.i);
+    } else if (k === PAUSE_KEY) {
       if (typeof e.preventDefault === 'function') e.preventDefault();
       setPause(!paused);
     } else if (k === DIAG_KEY) {
@@ -673,7 +689,7 @@ async function start({ container, modifiers, sdk }) {
 
   current.start(clock);
   sync();
-  scene.update(game.snapshot());
+  scene.update(report.learning.snapshot(game.snapshot()));
 
   clock.start((dt, t) => {
     if (paused) return;
@@ -692,7 +708,7 @@ async function start({ container, modifiers, sdk }) {
     try { document.removeEventListener('visibilitychange', onVisibility); } catch (_) {}
     try { window.removeEventListener('blur', onBlur); } catch (_) {}
     const snap = game.snapshot();
-    const r = report.finish();
+    const r = report.finish({ closed: true });
     // The coach has spoken, if there was anything to speak over: a service quit
     // before its first chord does not use up the first-time tips.
     if (coach && game.state.started) { try { localStorage.setItem(COACHED_KEY, '1'); } catch (_) {} }
@@ -702,20 +718,27 @@ async function start({ container, modifiers, sdk }) {
      * development inputs and report nothing. */
     const input = inputLabel === 'guitar' ? 'guitar' : inputLabel === 'keyboard' ? 'keyboard' : 'script';
     const { score, mult } = scoreOf(game.state.cash, { pace, pans, mode, input });
+    const previous = previousRecall(history, r.learning);
+    const nextPair = recommendPair({ sessions: [...history.sessions, r.learning] }, r.learning.context);
+    const record = game.state.started ? saveLearning(r.learning, mode === 'loop' || mode === 'practice' ? null : game.state.cash, undefined) : null;
     try {
       sdk.end({
-        score,
+        // The current hub has one global board and no assistance partitions.
+        // Memory keeps its arcade cash and an explicitly separate local record.
+        score: ch.assistance === 'memory' ? 0 : score,
         durationMs: Date.now() - startedAt,
         // The choice, in the shape the hub's own picker used to hand over,
         // so a Play Again with cached options reopens the plate on it.
-        modifiers: { pace, pans: String(pans), mode: sprintLocked ? 'sprint' : mode },
+        modifiers: { pace, pans: String(pans), mode: sprintLocked ? 'sprint' : mode, assistance: ch.assistance },
         meta: {
           input: inputLabel, profile: wanted.profile, seed: wanted.seed, pace, pans, mode, mult, why,
+          assistance: ch.assistance, arcadeScore: score, learningContext: r.learning.context,
+          helpRequests: r.learning.helpRequests,
           cash: game.state.cash, level: r.level, served: r.served, ruined: r.ruined,
           cycles: r.cycles, cleanRatio: r.cleanRatio, hash: r.hash,
           comboBest: snap.comboBest, slowest: r.slowest, ear: (current && current.stats && current.stats.ear) || null,
         },
-        summaryHtml: summary(r, snap, { seed: wanted.seed, pace, pans, mode, mult, score, input }),
+        summaryHtml: summary(r, snap, { seed: wanted.seed, pace, pans, mode, mult, score, input, previous, nextPair, record, assistance: ch.assistance }),
       });
     } catch (e) {
       console.warn('[fret-food] end() complained:', e);
@@ -821,29 +844,25 @@ function summary(r, snap, extra) {
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const money = (n) => '$' + String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const pct = (x) => (x === null || x === undefined ? '-' : Math.round(x * 100) + '%');
-  const slow = (r.slowest || []).map((c) => label(c.from) + '→' + label(c.to) + ' ' + (c.ms / 1000).toFixed(1) + ' s').join(' · ');
   const pace = String(extra.pace || 'normal');
   const mode = String(extra.mode || 'service');
   const mult = extra.mult === undefined ? 1 : extra.mult;
   const devInput = extra.input && extra.input !== 'guitar';
-  return '<dl class="kc-summary">'
-    + (mode !== 'service' ? '<dt>Mode</dt><dd>' + esc(mode.charAt(0).toUpperCase() + mode.slice(1)) + '</dd>' : '')
-    + (devInput
-      ? '<dt>Score</dt><dd>' + esc(money(snap.cash || 0)) + ' <small>not scored: played from the ' + esc(extra.input) + ', which is for development</small></dd>'
-      : mult !== 1
-        ? '<dt>Score</dt><dd>' + esc(money(snap.cash || 0)) + ' <small>x ' + esc(mult.toFixed(2)) + ' for what was chosen = ' + esc(extra.score) + '</small></dd>'
-        : '')
-    + '<dt>Service</dt><dd>' + esc(snap.levelName || '') + ' <small>level ' + r.level + '</small></dd>'
-    + '<dt>Dishes out</dt><dd><b>' + r.served + '</b></dd>'
-    + '<dt>Customers lost</dt><dd>' + r.ruined + '</dd>'
-    + '<dt>Best combo</dt><dd>x' + (snap.comboBest || 0) + '</dd>'
-    + '<dt>Clean steps</dt><dd>' + (r.cleanSteps === undefined ? r.cycles : r.cleanSteps) + ' of ' + r.cycles
-    + ' <small>' + pct(r.cleanRatio) + '</small></dd>'
-    + (slow ? '<dt>Slowest changes</dt><dd>' + esc(slow) + '</dd>' : '')
-    + (pace !== 'normal' ? '<dt>Pace</dt><dd>' + esc(pace.charAt(0).toUpperCase() + pace.slice(1)) + '</dd>' : '')
-    + (extra.pans && extra.pans < 5 ? '<dt>Burners</dt><dd>' + esc(extra.pans) + ' of 5</dd>' : '')
-    + '<dt>Service no.</dt><dd>' + esc(extra.seed) + ' <small>?seed=' + esc(extra.seed) + ' plays it again</small></dd>'
-    + '</dl>';
+  return '<div class="kc-recap"><dl class="kc-summary">'
+    + '<dt>' + (mode === 'loop' ? 'Exercise' : 'Service') + '</dt><dd>' + (mode === 'loop' ? 'Pair practice' : esc(snap.levelName || '') + ' · level ' + r.level) + '</dd>'
+    + '<dt>Orders</dt><dd><b>' + r.served + ' served</b> · ' + r.ruined + ' lost</dd>'
+    + '<dt>Best combo</dt><dd>×' + (snap.comboBest || 0) + '</dd>'
+    + '<dt>Clean steps</dt><dd>' + (r.cleanSteps === undefined ? r.cycles : r.cleanSteps) + '/' + r.cycles
+    + ' · ' + pct(r.cleanRatio) + '</dd></dl>'
+    + (extra.assistance === 'memory' && mode !== 'loop' && mode !== 'practice' ? '<p class="kc-muted">Memory cash: ' + money(snap.cash || 0) + ' · local record only.</p>' : '')
+    + learningSummary(r.learning, extra.previous, extra.nextPair, extra.record)
+    + '<details class="kc-details"><summary>Run details</summary><dl class="kc-summary">'
+    + '<dt>Mode</dt><dd>' + esc(mode) + ' · ' + esc(pace) + ' · ' + esc(extra.pans || 5) + ' burners</dd>'
+    + '<dt>Cash</dt><dd>' + esc(money(snap.cash || 0)) + '</dd>'
+    + '<dt>Score</dt><dd>' + (devInput ? 'Not scored · ' + esc(extra.input) + ' input' : mode === 'practice' || mode === 'loop' ? 'Not scored · practice' : extra.assistance === 'memory' ? 'Local record only' : '×' + esc(mult.toFixed(2)) + ' = ' + esc(extra.score)) + '</dd>'
+    + '<dt>Seed</dt><dd>' + esc(extra.seed) + '<small>Replay with ?seed=' + esc(extra.seed) + '</small></dd>'
+    + '</dl></details></div>';
+
 }
 
 function stop() {

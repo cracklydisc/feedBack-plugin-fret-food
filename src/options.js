@@ -51,8 +51,8 @@ export const ROWS = [
     id: 'mode', label: 'MODE',
     values: [
       { id: 'service', label: 'SERVICE', tell: 'THREE LOST CUSTOMERS CLOSE THE KITCHEN - THE TAKINGS ARE THE SCORE' },
-      { id: 'practice', label: 'PRACTICE', tell: 'NO STRIKES - EVERY CHANGE IS TIMED AND WRITTEN OVER ITS CARD - NOT SCORED' },
-      { id: 'loop', label: 'LOOP', tell: 'ONE DISH ON ONE POT, FOR EVER - AIMED AT YOUR SLOWEST CHANGE - NOT SCORED' },
+      { id: 'practice', label: 'PRACTICE', tell: 'NEW SHAPES IN SHORT RECIPES BEFORE MORE ORDERS - NO STRIKES - NOT SCORED' },
+      { id: 'loop', label: 'LOOP', tell: 'ONE PAIR - SIX CHANGES EACH WAY - NO COOLING - NOT SCORED' },
       {
         id: 'sprint', label: 'SPRINT', tell: 'THREE MINUTES FROM THE FIRST CHORD - THE TAKINGS ARE THE SCORE',
         /* Earned, not chosen: the hub counts dB across its games and says
@@ -61,9 +61,16 @@ export const ROWS = [
       },
     ],
   },
+  {
+    id: 'assistance', label: 'HELP',
+    values: [
+      { id: 'guided', label: 'GUIDED', tell: 'FINGERING ALWAYS VISIBLE - GUIDED SCORE' },
+      { id: 'memory', label: 'MEMORY', tell: 'NAME ONLY - CLICK THE BOARD OR H FOR HELP - SEPARATE LOCAL SCORE' },
+    ],
+  },
 ];
 
-export const DEFAULTS = { pace: 'normal', pans: 5, mode: 'service' };
+export const DEFAULTS = { pace: 'normal', pans: 5, mode: 'service', assistance: 'guided' };
 
 /* Where the choices are kept between services. */
 export const CHOICES_KEY = 'fretfood.choices';
@@ -89,6 +96,7 @@ export function createOptions(o) {
   const opt = o || {};
   const unlocked = opt.unlocked || new Set();
   const state = { row: 0 };
+  let target = opt.target || { from: 'C', to: 'G' };
   for (const row of ROWS) {
     const pinned = known(row.id, opt.pinned && opt.pinned[row.id]);
     const saved = known(row.id, opt.saved && opt.saved[row.id]);
@@ -107,6 +115,7 @@ export function createOptions(o) {
   /** Left and right along the row under the cursor; wraps. */
   function turn(dx) {
     const row = ROWS[state.row];
+    if (row.id === 'pans' && state.mode === 'loop') return 1;
     const i = row.values.findIndex((v) => v.id === state[row.id]);
     const j = (i + (dx < 0 ? -1 : 1) + row.values.length) % row.values.length;
     state[row.id] = row.values[j].id;
@@ -114,6 +123,7 @@ export function createOptions(o) {
   }
   /** A value chosen outright (a click); moves the cursor to that row. */
   function set(rowId, value) {
+    if (rowId === 'pans' && state.mode === 'loop' && Number(value) !== 1) return false;
     const v = known(rowId, value);
     if (v === undefined) return false;
     state[rowId] = v;
@@ -129,21 +139,24 @@ export function createOptions(o) {
       const v = valueOf(row.id);
       if (isLocked(v)) { out[row.id] = row.values[0].id; out.locked = v.id; } else out[row.id] = v.id;
     }
+    if (out.mode === 'loop') out.pans = 1;
     return out;
   }
 
   /** The sentence under a row: the value's own, or why it cannot be had. */
   function tell(rowId) {
     const v = valueOf(rowId);
+    if (rowId === 'pans' && state.mode === 'loop') return 'ONE POT FOR THIS EXERCISE - NO OTHER ORDERS - NOT SCORED';
+    if (rowId === 'mode' && v.id === 'loop') return target.from + ' TO ' + target.to + ' AND BACK - SIX EACH WAY - NO COOLING - NOT SCORED';
     return isLocked(v) ? v.locked : v.tell;
   }
 
-  /** The three values, as something to keep. */
+  /** The chosen values, as something to keep. */
   function toJSON() {
-    return { pace: state.pace, pans: state.pans, mode: state.mode };
+    return { pace: state.pace, pans: state.pans, mode: state.mode, assistance: state.assistance };
   }
 
-  return { state, rows: ROWS, move, turn, set, resolved, tell, locked: (rowId, value) => isLocked(rowOf(rowId).values.find((v) => v.id === value)), toJSON };
+  return { state, rows: ROWS, move, turn, set, resolved, tell, setTarget(p) { target = p; }, locked: (rowId, value) => isLocked(rowOf(rowId).values.find((v) => v.id === value)), toJSON };
 }
 
 /** Last time's choices out of storage, or nothing. Never throws. */
@@ -163,16 +176,16 @@ export function saveChoices(storage, choices) {
 /* ── the geometry ───────────────────────────────────────────────────────── */
 
 /* The plate over the dining room: from under the bar to the top of the
- * strip, so the strip's own line — PLAY C TO OPEN THE KITCHEN — and the whole
- * kitchen with the first ticket stay in view under it. */
+ * kitchen, so the first ticket stays in view under it. The menu footer owns
+ * the start instruction while the strip is covered. */
 export const MENU = {
-  X: 36, Y: 24, W: 408, H: 94,
+  X: 36, Y: 24, W: 408, H: 110,
   PAD: 6,
   LABEL_W: 52,          // the row's name, and the caret before it
   CHIP_H: 11,           // an M glyph is seven tall, plus two above and below
   CHIP_PAD: 4,          // air either side of a chip's word
   CHIP_GAP: 4,
-  ROW_H: 21,            // chips, the sentence under them, and a breath
+  ROW_H: 20,            // chips, the sentence under them, and a breath
   TITLE_H: 7,
 };
 
@@ -198,8 +211,8 @@ export function menuLayout(model, geo) {
       const chip = {
         row: row.id, value: v.id, label: v.label,
         x: cx, y: ry, w, h: M.CHIP_H,
-        selected: model.state[row.id] === v.id,
-        locked: model.locked(row.id, v.id),
+        selected: row.id === 'pans' && res.mode === 'loop' ? v.id === 1 : model.state[row.id] === v.id,
+        locked: (row.id === 'pans' && res.mode === 'loop' && v.id !== 1) || model.locked(row.id, v.id),
       };
       cx += w + M.CHIP_GAP;
       return chip;
@@ -215,7 +228,7 @@ export function menuLayout(model, geo) {
   return {
     plate: { x: M.X, y: M.Y, w: M.W, h: M.H },
     title: { s: "TONIGHT'S SERVICE", x: x0, y: y0 },
-    score: { s: scored ? 'SCORE X' + mult.toFixed(2) : 'NOT SCORED', x: right, y: y0, scored },
+    score: { s: scored ? (res.assistance === 'memory' ? 'LOCAL SCORE X' : 'SCORE X') + mult.toFixed(2) : 'NOT SCORED', x: right, y: y0, scored },
     rows,
     footer: { s: 'ARROWS CHOOSE - ENTER OR YOUR FIRST CHORD OPENS THE KITCHEN', x: x0, y: footY },
     start: { s: 'START', x: right - startW, y: footY - 3, w: startW, h: M.CHIP_H },

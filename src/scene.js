@@ -595,7 +595,7 @@ export function createScene(container) {
     const since = arrive[i] === undefined ? 1e9 : t - arrive[i];
     if (since < 900) return { pose: 'rest', mood: 'happy' };
     if (t - (cooked[i] || -1e9) < 700) return { pose: 'rest', mood: 'thrilled' };
-    const life = st.life === undefined ? 99 : st.life;
+    const life = st.untimed || st.life === undefined ? 99 : st.life;
     const slow = still ? 0 : Math.floor(t / 1600 + i) % 2;
     const fast = still ? 0 : Math.floor(t / 260) % 2;
     if (life < 2.5) return { pose: 'lean', lean: true, mood: 'angry', frame: fast, sweat: true };
@@ -807,6 +807,7 @@ export function createScene(container) {
 
   /* ── the strip ─────────────────────────────────────────────────────────── */
   function drawStrip(t) {
+    if (menu) return;
     const lost = t - chainLostAt < 450;
     /* The combo swells for a moment when it goes up. It is drawn from the
      * middle out so the two labels either side of it never move. */
@@ -817,7 +818,9 @@ export function createScene(container) {
      * the things it depends on are the drawing's to know: whether the keyboard
      * is what is talking and whether the window is too small to read in. The
      * legend for the keyboard takes turns with the rule, four seconds each. */
-    const say = coachText(snap, { narrow, hints, alt: !still && Math.floor(t / 4000) % 2 === 1 });
+    const say = snap.assistance === 'memory' ? 'MEMORY - H OR TAP FOR HELP'
+      : snap.stations?.some(st => st?.untimed) ? 'PAIR DRILL - SIX CHANGES EACH WAY'
+      : coachText(snap, { narrow, hints, alt: !still && Math.floor(t / 4000) % 2 === 1 });
     for (const it of stripLayout(snap, W, GEO, { coach: say }).items) {
       if (it.role === 'pips') {
         for (let k = 0; k < it.pips; k++) {
@@ -1171,7 +1174,7 @@ export function createScene(container) {
       if (recipe.hidden) {
         const moreX = x + recipe.more.x - recipe.x;
         rect(g, x + recipe.more.dividerX - recipe.x, y + 3, 1, 7, '#686352');
-        text(g, (recipe.hidden > 9 ? '>>' : '+' + recipe.hidden), moreX, y + 4, { font: 'S', color: P.amber });
+        text(g, (recipe.hidden > 99 ? '>>' : '+' + recipe.hidden), moreX, y + 4, { font: 'S', color: P.amber });
       }
     } else text(g, 'LAST STEP', x + 4, y + 4, { font: 'S', color: P.gold });
     text(g, (st.step + 1) + '/' + st.steps.length, x + 4, y + 28,
@@ -1228,7 +1231,10 @@ export function createScene(container) {
      * panel a player has to READ. The pixel version is what is left if the
      * layer could not be made. */
     const d = diagram(st.wants);
-    if (d && !layer) chordBox(x + 38, y + 12, d);
+    if (st.diagramVisible === false) {
+      text(g, 'RECALL', x + 59, y + 22, { font: 'S', color: P.gold, align: 'center' });
+      text(g, 'H / TAP', x + 59, y + 31, { font: 'S', color: P.greyHi, align: 'center' });
+    } else if (d && !layer) chordBox(x + 38, y + 12, d);
 
     /* Seconds left: the one number a player decides on, and it is ALWAYS on
      * the card.
@@ -1241,9 +1247,12 @@ export function createScene(container) {
      * does not leave the card. */
     const life = Math.max(0, st.life || 0);
     const secs = Math.ceil(life);
-    const urgent = life < 3;
+    const urgent = !st.untimed && life < 3;
     const pulse = urgent && !still && Math.floor(t / 300) % 2 === 1;
-    if (waiting) {
+    if (st.untimed && !waiting) {
+      text(g, 'PAIR', x + 4, y + 35, { font: 'M', color: P.cream });
+      text(g, 'NO CLOCK', x + 4, y + 44, { font: 'S', color: P.grey });
+    } else if (waiting) {
       /* No clock is running, so no clock is shown: the row says PLAY, in the
        * same breath as the border, and the card explains itself without the
        * strip. A grey `11 SEC` here read as a clock that had stopped. */
@@ -1616,7 +1625,7 @@ export function createScene(container) {
     const badge = art.frame('mark', 'idle');
     const AIR = 10;
     const rows = [
-      { s: 'SERVICE CLOSED', font: 'M', scale: 2, color: P.amber, h: 14 },
+      { s: snap.drill ? 'PAIR COMPLETE' : 'SERVICE CLOSED', font: 'M', scale: 2, color: P.amber, h: 14 },
       { s: money(snap.cash || 0), font: 'M', scale: 2, color: P.gold, h: 14 },
       { s: 'SERVED ' + snap.served + '   LOST ' + snap.ruined + '   BEST COMBO x' + (snap.comboBest || 0),
         font: 'S', color: P.grey, h: 5 },
