@@ -449,6 +449,30 @@ every shape in the game with a string missing or a stray one ringing:
 `scoreChord` stays as the fallback for a build with no ML detector, with its
 ties broken on the fretted strings, since the open ones are nearly free.
 
+**A strum is noticed two ways, and either will do.** The level is polled
+sixty times a second and a strum is a sharp rise above a rolling background.
+That is Strum Fighter's measured detector and it works — but a rise in the
+level is a rise in the level, and the C is the one chord you strum carefully,
+because `x32010` asks you to miss the low E. A session reported it going
+unheard over and over. So the notes' own onsets fire too: every note the
+engine reports carries an `onsetSeq` that goes up when THAT pitch is struck
+anew, which is what `notedetect` gates its own chord timing on, and a pitch
+struck quietly is struck all the same. Whichever notices first wins and one
+gesture is still one hearing.
+
+**Two chords a semitone apart are two chords a semitone apart.** D and Dsus4
+differ by one note on the high E, and so do Dm and D, Am and A, Em and E:
+sixteen pairs in the vocabulary sit one string apart. When the detector
+rounds that string the wrong way the game hears the wrong chord, and no rule
+here can forgive one of those pairs without forgiving all of them — a
+tolerance wide enough to call a Dsus4 a D is wide enough to call an E an Em,
+which is the distinction the whole drill is built on. What the game does
+instead is narrow: when two shapes fit the air EXACTLY as well, which happens
+when the one string that separates them is the one that did not sound, the
+counter is asked which of them somebody ordered. A dead heat and nothing
+wider — measured, a wider band rescues a tenth of a percent more and spends
+it letting the counter speak where the ear had an opinion.
+
 **And you can watch it.** `I` opens a plate over the dining room with the
 counters — strums heard, cooked, held, too quick, unnamed — and the last few
 things the ear had in front of it: the pitches, what they were called and how

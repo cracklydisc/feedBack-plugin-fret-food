@@ -158,12 +158,16 @@ function fakeBridge(o) {
   return {
     level: 0,
     air: [],
+    strike: 0,
     calls: { detectNotes: 0, scoreChord: 0 },
     async getLevels() { return { inputLevel: this.level }; },
     async isMlNoteDetection() { return opt.ml !== false; },
     async detectNotes() {
       this.calls.detectNotes++;
-      return { notes: this.air.map((midi, k) => ({ midi, confidence: 0.9, onsetMs: 0, onsetSeq: k })) };
+      // `onsetSeq` counts how many times THAT pitch has been struck. The
+      // bench bumps `strike` when the hand plays, which is what the adapter
+      // reads to know a chord was struck anew.
+      return { notes: this.air.map((midi) => ({ midi, confidence: 0.9, onsetMs: 0, onsetSeq: this.strike })) };
     },
     async scoreChord(req) {
       this.calls.scoreChord++;
@@ -212,11 +216,22 @@ function bench(o) {
         await Promise.resolve();
       }
     },
-    /** A strum of `chord`, `gap` ms after the last one. */
+    /** A strum of `chord`, `gap` ms after the last one: the hand puts those
+     *  pitches in the air and strikes them, and the level rises. */
     async play(chord, gap) {
       bridge.air = chord ? pitchesOf(chord) : [];
+      bridge.strike++;
       await this.poll(0.02, (gap === undefined ? 500 : gap) - 16);
       await this.poll(0.6, 16);
+    },
+    /** The same, played so quietly that the level never rises: only the
+     *  notes' own onsets can notice it. */
+    async quietly(chord, gap) {
+      bridge.air = chord ? pitchesOf(chord) : [];
+      bridge.strike++;
+      await this.poll(0.02, (gap === undefined ? 500 : gap) - 16);
+      await this.poll(0.02, 16);
+      await this.poll(0.02, 48);
     },
   };
 }
@@ -307,4 +322,47 @@ test('the strict ear asks for more agreement than the kind one', async () => {
   assert.equal(nameFrom(rough, { floor: EARS.hard.fit }), null, 'the strict ear will not have it');
   assert.equal(nameFrom(pitchesOf('C').slice(0, 2), { floor: 0 }), null,
     'and two strings of five are not a chord at any grade: see MIN_RECALL');
+});
+
+test('a strum too quiet for the level is still heard, because the notes were struck', () => {
+  /* The C, and why it kept going unheard. `x32010` asks you to miss the low
+   * E, so it is the one chord a beginner strums carefully, and a careful
+   * strum is a small rise: the level detector's job is to tell a strum from a
+   * ring-out and it does that by how sharply the signal climbs. A pitch
+   * struck anew is struck anew however quietly, and every note the engine
+   * reports carries that as a counter. */
+  return (async () => {
+    const b = bench({ candidates: ['C'] });
+    b.adapter.start();
+    await b.poll(0.01);
+    await b.poll(0.01);
+    await b.quietly('C');
+    assert.equal(b.strums.length, 1, 'the notes noticed what the level could not');
+    assert.equal(b.strums[0].chord, 'C');
+    assert.ok(b.adapter.stats.struck > 0, 'and it is counted as struck, not as a rise');
+  })();
+});
+
+test('one gesture is one hearing, however many ways it was noticed', () => {
+  return (async () => {
+    const b = bench({ candidates: ['C'] });
+    b.adapter.start();
+    await b.poll(0.01);
+    await b.poll(0.01);
+    // Loud AND struck: the level rise and the notes' onsets land together.
+    await b.play('C');
+    assert.equal(b.strums.length, 1);
+    assert.equal(b.adapter.stats.onsets, 1, 'both triggers, one onset');
+  })();
+});
+
+test('the pitches already ringing when the service opens are not a strum', () => {
+  return (async () => {
+    const b = bench({ candidates: ['C'] });
+    b.bridge.air = pitchesOf('C');
+    b.bridge.strike = 7;                    // a chord left ringing from before
+    b.adapter.start();
+    for (let k = 0; k < 6; k++) await b.poll(0.01, 48);
+    assert.equal(b.strums.length, 0, 'the first poll is a baseline, not a gesture');
+  })();
 });

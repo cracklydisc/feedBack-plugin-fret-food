@@ -25,13 +25,29 @@
  *
  * ── WHEN DID YOU STRUM ─────────────────────────────────────────────────
  *
- * The level is polled at about sixty a second and a strum is a sharp rise
+ * Two ways, and either will do.
+ *
+ * THE LEVEL is polled at about sixty a second and a strum is a sharp rise
  * ABOVE A ROLLING BACKGROUND, not above a fixed floor. That distinction is
  * not ours and it was not free: Strum Fighter's own comments record that a
  * fixed floor was pinned high by its boss music and dropped every strum. The
  * constants below are its measured ones, kept deliberately identical — a
  * second set of numbers tuned by ear against the same engine would be a worse
  * set of numbers.
+ *
+ * THE NOTES' OWN ONSETS are the second, and on a build with the ML detector
+ * they are the better one. Every note `detectNotes` reports carries an
+ * `onsetSeq`, a counter that goes up when THAT pitch is struck anew, and
+ * `notedetect` gates its own chord timing on exactly that. A rise in the
+ * level is a rise in the level: it depends on how hard the room, the pickup
+ * and the hand happen to make a chord, and a session with a guitar reported
+ * the C going unheard over and over — which is the one shape you strum
+ * carefully, because `x32010` asks you to miss the low E, and missing a
+ * string means less signal. A pitch struck anew is struck anew however
+ * quietly.
+ *
+ * So both fire, and `MIN_GAP_MS` keeps one strum from being two. Whichever
+ * notices first wins, and on a quiet C that is the notes.
  *
  * ── WHICH CHORD WAS IT: THE NOTES, WHEN THE ENGINE HAS THEM ────────────
  *
@@ -121,6 +137,13 @@ const REARM_MS = 180;
 const SETTLE_MS = 55;
 
 const POLL_MS = 16;        // about sixty a second, like the game itself
+
+/* How often the notes are asked for. `notedetect` runs its own detection loop
+ * at fifty and guards against overlapping calls, so this is the app's own
+ * rate rather than a number of ours; the level goes on being read every
+ * poll, because it costs nothing and it is the one thing that says whether
+ * the guitar is reaching the app at all. */
+const NOTES_MS = 48;
 
 /* What the engine is asked for. `bypassMl` + `harmonicVerify` select the DSP
  * harmonic-comb verifier, which is the mode that actually detects a STRUMMED
@@ -231,8 +254,14 @@ export function earFor(quality) {
 export const MIN_CHANGE_MS = 250;
 
 /* How near two shapes have to be before the counter is asked which one it
- * was. See the note in `nameFrom`. */
-export const TIE_BAND = 0.08;
+ * was, and it is a DEAD HEAT and nothing wider. Measured over every shape
+ * with a string missing, a stray one ringing, or two strings gone: a band of
+ * 0.08 rescues 98.2% of them when the counter wants them and a band of zero
+ * rescues 98.1%, because the cases that need rescuing ARE exact ties — a hand
+ * that fails to press the one string telling Am from A leaves pitches that
+ * fit both to the last decimal. A wider band buys a tenth of a percent and
+ * spends it letting the counter speak where the ear had an opinion. */
+export const TIE_BAND = 0;
 
 /* HOW MUCH OF A SHAPE HAS TO BE THERE BEFORE IT IS THAT SHAPE.
  *
@@ -529,6 +558,12 @@ export function createEngineAdapter(port, opts) {
 
   let running = false;
   let timer = null;
+  /* The onset counter last seen for each pitch, and whether the first poll
+   * has been taken. Without the priming, every pitch already ringing when
+   * the service opens arrives as a strum. */
+  const seqSeen = new Map();
+  let primedNotes = false;
+  let notesAt = -1e9;
   let baseline = 0;
   let prevLevel = 0;
   let primed = false;
@@ -536,7 +571,7 @@ export function createEngineAdapter(port, opts) {
   let lastOnsetAt = -1e9;
   let scoring = false;
   const stats = {
-    onsets: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0,
+    onsets: 0, struck: 0, named: 0, unknown: 0, ring: 0, quick: 0, level: 0,
     ear: o.ear || 'medium', road: '?',
     /* The last few hearings, newest first, for the overlay: what was in the
      * air, what it was called and what became of it. It is the only way to
@@ -686,6 +721,45 @@ export function createEngineAdapter(port, opts) {
     logged('no chord', heardAir, null);
   }
 
+  /** A strum, however it was noticed. Throttled: one gesture is one hearing. */
+  function struck(t) {
+    if (t - lastOnsetAt <= MIN_GAP_MS) return;
+    lastOnsetAt = t;
+    armed = false;
+    stats.onsets++;
+    if (scoring) return;
+    scoring = true;
+    hear().catch(() => {}).then(() => { scoring = false; });
+  }
+
+  /**
+   * THE NOTES' OWN ONSETS. Every pitch carries a counter that goes up when it
+   * is struck again, so a chord is a handful of them going up together — and
+   * a pitch struck quietly is struck all the same, which is what the level
+   * cannot say. See the note at the top.
+   */
+  async function pollNotes(t) {
+    let d = null;
+    try { d = await audio.detectNotes(); } catch (_) { return; }
+    if (!running || !d || !Array.isArray(d.notes)) return;
+    let fresh = false;
+    for (const n of d.notes) {
+      if (!n || !Number.isFinite(n.midi) || !Number.isFinite(n.onsetSeq)) continue;
+      const midi = Math.round(n.midi);
+      const prev = seqSeen.get(midi);
+      seqSeen.set(midi, n.onsetSeq);
+      if (!primedNotes) continue;                       // the first poll is the baseline
+      if (prev !== undefined && n.onsetSeq <= prev) continue;
+      const c = Number(n.confidence);
+      if (Number.isFinite(c) && c < ear.conf) continue;
+      fresh = true;
+    }
+    primedNotes = true;
+    if (!fresh) return;
+    stats.struck++;
+    struck(t);
+  }
+
   async function tick() {
     if (!running) return;
     try {
@@ -711,16 +785,14 @@ export function createEngineAdapter(port, opts) {
         if (!armed) {
           if (level < rearm || t - lastOnsetAt >= REARM_MS) armed = true;
         }
-        if (armed && level > onset && level - prevLevel > ear.slope && t - lastOnsetAt > MIN_GAP_MS) {
-          lastOnsetAt = t;
-          armed = false;
-          stats.onsets++;
-          if (!scoring) {
-            scoring = true;
-            hear().catch(() => {}).then(() => { scoring = false; });
-          }
-        }
+        if (armed && level > onset && level - prevLevel > ear.slope) struck(t);
         prevLevel = level;
+        /* And the notes, on the app's own cadence. `road()` has already been
+         * asked once by then, so this costs nothing on a build without them. */
+        if (await road() && t - notesAt >= NOTES_MS) {
+          notesAt = t;
+          await pollNotes(t);
+        }
       }
     } catch (_) {
       // A transient failure on the bridge: keep polling rather than give up.
