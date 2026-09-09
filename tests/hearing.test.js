@@ -115,6 +115,16 @@ test('when the pitches cannot separate two shapes, the counter says which', () =
   assert.equal(nameFrom(pitchesOf('F+'), { wanted: ['F'] }).chord, 'F+');
 });
 
+test('a chord is not named on less than half of itself', () => {
+  /* Two notes of an Am — the top two — are both in a C and nothing else was
+   * in the air to argue, so the fit came out 0.57 and the kind ear called it
+   * a C. Precision alone is not evidence: some of the SHAPE has to be there. */
+  assert.equal(nameFrom(pitchesOf('Am').slice(3), { floor: 0 }), null);
+  const twoLeft = nameFrom(pitchesOf('Am').slice(2), { floor: 0 });
+  assert.equal(twoLeft.chord, 'Am', 'three of the five is still an Am');
+  assert.equal(twoLeft.recall, 0.6);
+});
+
 test('nothing in the air, or nothing that fits, is named nothing', () => {
   assert.equal(nameFrom([]), null);
   assert.equal(nameFrom(null), null);
@@ -277,16 +287,24 @@ test('a build with no ML detector falls back to the shape scorer', async () => {
 test('the strict ear asks for more agreement than the kind one', async () => {
   assert.ok(EARS.hard.fit > EARS.medium.fit && EARS.medium.fit > EARS.easy.fit);
   assert.ok(EARS.hard.conf > EARS.medium.conf && EARS.medium.conf > EARS.easy.conf);
-  /* Two strings of a five-string C fit it 0.57: the kind ear takes that and
-   * calls it a C, the middle one and the strict one hear nothing. Three of
-   * the five fit 0.75 and every grade takes it — a chord missing one string
-   * is still that chord, whoever is listening. */
-  const two = pitchesOf('C').slice(0, 2);
-  assert.ok(nameFrom(two, { floor: EARS.easy.fit }), 'the kind ear takes two strings of a C');
-  assert.equal(nameFrom(two, { floor: EARS.medium.fit }), null, 'the middle one does not');
-  assert.equal(nameFrom(two, { floor: EARS.hard.fit }), null, 'nor the strict one');
+  /* Three strings of a five-string C fit it 0.75 and every grade takes it: a
+   * chord missing a string is still that chord, whoever is listening. Two of
+   * the five is under `MIN_RECALL` and no grade takes it — a chord is not
+   * named on less than half of itself. What the grades really move is the
+   * middle ground, so this is measured on a shape with more strings: four of
+   * a six-string Em fits 0.67, which the kind ear takes and the strict one
+   * does not. */
   const three = pitchesOf('C').slice(0, 3);
   for (const grade of ['easy', 'medium', 'hard']) {
     assert.equal(nameFrom(three, { floor: EARS[grade].fit }).chord, 'C', grade + ' should hear three strings of a C');
   }
+  /* Half an Em with something ringing that is not in it — three of its six
+   * strings and a stray D# — fits 0.60: the kind and middle ears take that
+   * and the strict one does not. */
+  const rough = pitchesOf('Em').slice(0, 3).concat([63]);
+  assert.equal(nameFrom(rough, { floor: EARS.easy.fit }).chord, 'Em');
+  assert.equal(nameFrom(rough, { floor: EARS.medium.fit }).chord, 'Em');
+  assert.equal(nameFrom(rough, { floor: EARS.hard.fit }), null, 'the strict ear will not have it');
+  assert.equal(nameFrom(pitchesOf('C').slice(0, 2), { floor: 0 }), null,
+    'and two strings of five are not a chord at any grade: see MIN_RECALL');
 });

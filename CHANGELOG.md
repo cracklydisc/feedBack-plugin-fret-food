@@ -73,6 +73,13 @@ All notable changes to this project are documented here. The format follows
   string a shape asks you to MUTE is now forgiven — it is that shape's own
   known imperfection. Five shapes are built that way and C is the one a player
   meets first.
+- **A chord is not named on less than half of itself.** The fit balances two
+  ratios, so a small piece of a chord that happens to be clean scored like a
+  whole one that is slightly dirty: the top two notes of an Am are both in a C
+  and nothing else was in the air to argue, so they fitted a C at 0.57 and the
+  kind ear cooked one. `MIN_RECALL` is the floor — half the shape has to be
+  there, whatever the rest of the arithmetic says. Two strings dead out of
+  five is 0.6 and still passes, so it costs nothing real.
 - **When the pitches cannot separate two shapes, the counter says which.**
   Measuring every shape with a string missing turned up twenty-one ties and
   every single one is the chord's THIRD: Am without its C4 is the pitches of

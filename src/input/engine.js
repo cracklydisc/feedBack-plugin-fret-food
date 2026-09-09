@@ -234,6 +234,21 @@ export const MIN_CHANGE_MS = 250;
  * was. See the note in `nameFrom`. */
 export const TIE_BAND = 0.08;
 
+/* HOW MUCH OF A SHAPE HAS TO BE THERE BEFORE IT IS THAT SHAPE.
+ *
+ * The fit is a balance of two ratios, so a very small piece of a chord that
+ * happens to be clean scores like a whole one that is slightly dirty: two
+ * notes of an Am — the top two, C4 and E4 — fit a C at 0.57, because a C
+ * contains both and nothing else was in the air to argue. The kind ear takes
+ * 0.50, so those two notes cooked a C.
+ *
+ * Half is the floor: a chord is not named on less than half of itself,
+ * whatever the rest of the arithmetic says. A five-string shape needs three
+ * of its notes, a six-string one needs three. It costs nothing real — two
+ * strings dead out of five is 0.6 and still passes — and it closes the door
+ * on a chord named out of somebody else's ringing. */
+export const MIN_RECALL = 0.5;
+
 /**
  * The shape as the engine wants it: `{ s, f }` with `s` counted from 0 at the
  * low E, muted strings left out.
@@ -361,7 +376,7 @@ export function nameFrom(heard, opts) {
     }
     const recall = hit / want.length;
     const precision = known / air.length;
-    if (!recall || !precision) continue;
+    if (!recall || !precision || recall < MIN_RECALL) continue;
     const fit = (2 * recall * precision) / (recall + precision);
     /* TOO CLOSE TO CALL: the counter decides.
      *
