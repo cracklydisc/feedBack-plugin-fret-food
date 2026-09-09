@@ -524,17 +524,30 @@ async function start({ container, modifiers, sdk }) {
       'EAR ' + String(s.ear || '?').toUpperCase()
         + ' - ' + String(s.road || label).toUpperCase()
         + (s.why ? ' (' + String(s.why).toUpperCase() + ')' : '')
-        + ' - STRUMS ' + (s.onsets || 0) + ' COOKED ' + (s.named || 0)
-        + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0)
-        /* Named right, played too roughly to cook (`RULES.CLEAN`). It sits
-         * beside UNNAMED on purpose: the two are the ear failing and the hand
-         * failing, and telling them apart is the whole use of this line. */
-        + ' MUDDY ' + (game.state.rough || 0),
+        /* Four numbers that used to be two, and they are read left to right
+         * as a funnel: how many gestures the ear noticed, how many it could
+         * put a name to, how many of those the kitchen accepted, and how many
+         * it turned away for being played roughly (`RULES.CLEAN`).
+         *
+         * NAMED was called COOKED and counted sends, which since `CLEAN` is
+         * not the same thing at all. MUDDY comes from the engine because the
+         * threshold is the engine's; it sits between NAMED and the ear's own
+         * failures on purpose — UNNAMED is the ear not hearing you, MUDDY is
+         * you, and a player deciding whether the bar is set right needs to see
+         * which of the two is climbing. */
+        + ' - STRUMS ' + (s.onsets || 0) + ' NAMED ' + (s.named || 0)
+        + ' COOKED ' + (game.state.cycles || 0) + ' MUDDY ' + (game.state.rough || 0)
+        + ' HELD ' + (s.ring || 0) + ' QUICK ' + (s.quick || 0) + ' UNNAMED ' + (s.unknown || 0),
     ];
+    /* The bar a fit has to clear to cook. Only this layer knows both numbers —
+     * the adapter measures the fit and the engine owns the threshold — so this
+     * is the only place that can mark the rows the kitchen turned away. */
+    const clean = (game.rules && game.rules.CLEAN) || 0;
     const rows = (s.last || []).map((r) => {
       const air = r.air && r.air.length ? r.air.join('  ') : 'THE ENGINE ANSWERED NOTHING';
       const said = r.chord ? label(r.chord) + ' ' + r.fit.toFixed(2) : 'NO CHORD';
-      return air + '  -  ' + said + '  ' + String(r.why).toUpperCase();
+      const muddy = r.chord && r.why === 'named' && r.fit < clean ? '  MUDDY' : '';
+      return air + '  -  ' + said + '  ' + String(r.why).toUpperCase() + muddy;
     });
     return head.concat(rows.length ? rows : ['PLAY SOMETHING']);
   }

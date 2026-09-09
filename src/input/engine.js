@@ -1011,7 +1011,12 @@ export function createEngineAdapter(port, opts) {
     }
     if (best) {
       stats.named++;
-      logged('cooked', best);
+      /* NAMED, and not `cooked`. The adapter names chords; whether a pot
+       * cooks is the kitchen's to say, and since `RULES.CLEAN` it can refuse
+       * one this side has happily named. A row reading COOKED next to a fit
+       * of 0.72 while the counter said MUDDY would be lying in exactly the
+       * place a player goes to check that threshold. */
+      logged('named', best);
       lastNamed = { chord: best.chord, raw, at };
       send({ chord: best.chord, quality: Math.max(0, Math.min(1, best.quality)), at, heardAt: at });
       return;
